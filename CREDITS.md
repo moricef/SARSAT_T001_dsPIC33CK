@@ -39,7 +39,7 @@ This COSPAS-SARSAT beacon generator is based on and inspired by:
 - **ADL5375**: Analog Devices I/Q modulator datasheet
 
 ### Development Tools
-- **MPLAB X IDE**: v6.25+ with XC16 compiler v3.21
+- **MPLAB X IDE**: v6.25+ with XC-DSC compiler v3.21
 - **Claude Code**: AI-assisted development and optimization
 - **GitHub**: Version control and collaboration platform
 
