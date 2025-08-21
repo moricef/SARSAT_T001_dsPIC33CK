@@ -16,7 +16,7 @@ dsPIC33CK64MC105 → ADF4351 (403MHz PLL) → ADL5375 (I/Q Mod) → RA07M4047M (
 
 ## 🎯 Fonctionnalités
 
-### ✅ Génération 1ère Génération (T.001)
+### ✅ Générateur de trames 1ère Génération (T.001)
 - **Modulation** : Biphase-L BPSK (±1.1 rad)
 - **Trames** : 112/144 bits avec BCH error correction
 - **Fréquences** : 403 MHz (évite fausses alertes SARSAT)
