@@ -1,8 +1,15 @@
+#include "includes.h"
+#include "system_definitions.h"
+#include "system_comms.h"
+#include "system_debug.h"
 #include "protocol_data.h"
 
 void full_error_diagnostic(void) {
+    if (debug_flags.diagnostic_printed) return;
+    debug_flags.diagnostic_printed = 1;
     // V�rification initiale du mat�riel
     debug_print_str("=== DIAGNOSTIC SYSTEME ===\r\n");
+    debug_full_flush();
     
     // 1. Validation polyn�mes BCH
     if(BCH1_POLY != 0x26D9E3 || BCH2_POLY != 0x1539) {
@@ -25,7 +32,7 @@ void full_error_diagnostic(void) {
 void verify_cs_t001_constants(void) {
     debug_print_str("=== CS-T001 CONSTANTS VERIFICATION ===\r\n");
     
-    // Vérification polynômes BCH
+    // Verification polynomes BCH
     debug_print_str("BCH1_POLY: 0x");
     debug_print_hex24(BCH1_POLY);
     debug_print_str((BCH1_POLY == 0x26D9E3) ? " ✓" : " ✗ SHOULD BE 0x26D9E3");
@@ -36,7 +43,7 @@ void verify_cs_t001_constants(void) {
     debug_print_str((BCH2_POLY == 0x1539) ? " ✓" : " ✗ SHOULD BE 0x1539");
     debug_print_str("\r\n");
     
-    // Vérification sync patterns
+    // Verification sync patterns
     debug_print_str("SYNC_NORMAL_LONG: 0x");
     debug_print_hex16(SYNC_NORMAL_LONG);
     debug_print_str((SYNC_NORMAL_LONG == 0x2F) ? " ✓" : " ✗ SHOULD BE 0x2F");
@@ -47,7 +54,7 @@ void verify_cs_t001_constants(void) {
     debug_print_str((SYNC_SELF_TEST == 0x1A0) ? " ✓" : " ✗ SHOULD BE 0x1A0");
     debug_print_str("\r\n");
     
-    // Vérification country code
+    // Verification country code
     debug_print_str("COUNTRY_CODE_FRANCE: ");
     debug_print_int32(COUNTRY_CODE_FRANCE);
     debug_print_str((COUNTRY_CODE_FRANCE == 227) ? " ✓" : " ✗ SHOULD BE 227");

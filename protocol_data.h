@@ -1,14 +1,7 @@
 #ifndef PROTOCOL_DATA_H
 #define PROTOCOL_DATA_H
 
-#include "system_comms.h"
-#include <assert.h>
-#include <math.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
+#include "system_definitions.h"
 
 #ifndef __bool_true_false_are_defined
 #define bool _Bool
@@ -17,26 +10,8 @@
 #endif
 
 // =============================
-// Configuration de la transmission
-// =============================
-#define PREAMBLE_DURATION_MS 160
-#define MODULATED_DURATION_MS 360
-#define POSTAMBLE_DURATION_MS 320
-#define TOTAL_TX_DURATION_MS                                                   \
-  (PREAMBLE_DURATION_MS + MODULATED_DURATION_MS + POSTAMBLE_DURATION_MS)
-#define MAX_DUTY_CYCLE 0.1
-#define CARRIER_FREQ_HZ 40000
-#define SYMBOL_RATE_HZ 400
-#define SAMPLE_RATE_HZ 200000
-#define SAMPLES_PER_SYMBOL (SAMPLE_RATE_HZ / SYMBOL_RATE_HZ)
-#define SAMPLES_PER_HALF_BIT (SAMPLES_PER_SYMBOL / 2)
-#define PREAMBLE_SAMPLES (PREAMBLE_DURATION_MS * SAMPLE_RATE_HZ / 1000)
-#define POSTAMBLE_SAMPLES (POSTAMBLE_DURATION_MS * SAMPLE_RATE_HZ / 1000)
-
-// =============================
 // Configuration du protocole CS-T001
 // =============================
-#define MESSAGE_BITS 144
 #define TEST_LATITUDE 42.95463
 #define TEST_LONGITUDE 1.364479
 #define TEST_ALTITUDE 1080
@@ -62,10 +37,10 @@
 #define COUNTRY_CODE_FRANCE 227
 
 // Modes de balise
-#define BEACON_MODE_NORMAL 0
+#define BEACON_MODE_EXERCISE 0
 #define BEACON_MODE_TEST 1
 
-// Validation des polynômes BCH
+// Validation des polynÃ´mes BCH
 #ifndef BCH_POLY_VALIDATED
 #define BCH_POLY_VALIDATED
 
@@ -87,21 +62,7 @@
 // =============================
 // Data Structures
 // =============================
-typedef struct __attribute__((packed)) {
-  uint8_t gps_encoding_printed : 1;
-  uint8_t frame_info_printed : 1;
-  uint8_t build_msg_printed : 1;
-  uint8_t test_frame_msg_printed : 1;
-  uint8_t validation_printed : 1;
-  uint8_t transmission_printed : 1;
-  uint8_t frame_build_printed : 1;
-  uint8_t power_mode_printed : 1;
-  uint8_t power_printed : 1;
-  uint8_t interval_adjusted_printed : 1; 
-  uint8_t reserved : 1;             // Ajustement pour le packing
-} debug_flags_t;
 
-extern volatile debug_flags_t debug_flags;
 
 // Complete GPS position structure for CS-T001 compliance
 typedef struct {
@@ -120,7 +81,7 @@ typedef struct {
   uint8_t data_bits;
 } cs_test_vector_t;
 
-// Mode utilisé pour le test
+// Mode utilise pour le test
 extern uint8_t beacon_mode;
 
 // =============================
@@ -143,7 +104,7 @@ uint32_t compute_4sec_offset(double lat, double lon, uint32_t position_30min);
 uint8_t altitude_to_code(double altitude);
 
 // =============================
-// PRIORITY 2: Standardized Bit Operations
+// Standardized Bit Operations
 // =============================
 void set_bit_field(uint8_t *frame, uint16_t cs_start_bit, uint8_t length,
                    uint64_t value);
@@ -156,11 +117,11 @@ uint64_t get_bit_field_volatile(volatile const uint8_t *frame,
 // Frame Construction - Updated
 // =============================
 void build_test_frame(void);      // Original function
-void build_exercice_frame(void);  // Original function
+void build_EXERCISE_frame(void);  // Original function
 void build_compliant_frame(void); // PRIORITY 2: New compliant version
 
 // =============================
-// PRIORITY 3: Comprehensive Testing
+// Comprehensive Testing
 // =============================
 void validate_cs_t001_comprehensive(void);
 void validate_position_encoding(void);
@@ -170,11 +131,11 @@ void test_cs_t001_vectors(void);
 void cs_t001_full_compliance_check(void); // Master check function
 
 // =============================
-// PRIORITY 4: Improved Debug Output
+// Improved Debug Output
 // =============================
 void debug_print_complete_frame_info(uint8_t include_hex);
 void debug_print_frame_hex(
-    volatile const uint8_t *frame); // Version paramétrée
+    volatile const uint8_t *frame); // Version parametree
 void debug_print_beacon_frame_hex(
     void); // Version utilisant beacon_frame global
 void debug_print_frame_analysis(volatile const uint8_t *frame);
@@ -186,10 +147,10 @@ void debug_print_hex32(uint32_t value);
 void debug_print_hex64(uint64_t value);
 
 // Utility functions
-float get_freq_deviation(void); // Retourne la déviation de fréquence en Hz
+float get_freq_deviation(void); // Retourne la deviation de frequence en Hz
 
 // =============================
-// NOUVEAU: Fonction de reinitialisation des flags anti-doublons
+// Fonction de reinitialisation des flags anti-doublons
 // =============================
 void initialize_debug_system(void);
 uint8_t validate_frame_hardware(void);
@@ -200,7 +161,7 @@ void debug_print_int16(int16_t value);
 void debug_print_hex24(uint32_t value);
 
 // =============================
-// CORRECTION 7: dsPIC33CK frame validation macro
+// dsPIC33CK frame validation macro
 // =============================
 #define VALIDATE_CS_T001_FRAME()                                               \
   do {                                                                         \
@@ -219,7 +180,7 @@ void debug_print_hex24(uint32_t value);
     debug_flags.validation_printed = 1; /* SET FLAG AFTER VALIDATION */        \
   } while (0)
 
-// D�finitions pour acc�s atomique
+// Définitions pour accès atomique
 #define DEBUG_FLAG_GPS_ENCODING 0
 #define DEBUG_FLAG_FRAME_INFO 1
 #define DEBUG_FLAG_BUILD_MSG 2
@@ -228,7 +189,17 @@ void debug_print_hex24(uint32_t value);
 #define DEBUG_FLAG_TRANSMISSION 5
 
 #define MAX_DUTY_CYCLE_PERCENT 0.1 // 10%
-#define MIN_TX_INTERVAL_MS (TOTAL_TX_DURATION_MS / MAX_DUTY_CYCLE_PERCENT)
+
+// =============================
+// Type trame Transmission 
+// =============================
+typedef enum {
+    BEACON_TEST_FRAME,
+    BEACON_EXERCISE_FRAME
+} beacon_frame_type_t;
+
+void start_beacon_frame(beacon_frame_type_t frame_type);
+
 
 // =============================
 // Variables globales partagees
@@ -238,7 +209,6 @@ extern volatile uint8_t gps_updated;
 extern double current_latitude;
 extern double current_longitude;
 extern double current_altitude;
-extern volatile uint8_t beacon_frame[MESSAGE_BITS];
 
 // =============================
 // Convenience Macros for Frame Fields

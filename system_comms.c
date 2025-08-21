@@ -1,381 +1,446 @@
-#include "system_comms.h"
-#include "protocol_data.h"
-#include "system_definitions.h"
+// system_comms.c
 #include "includes.h"
+#include "system_definitions.h"
+#include "system_comms.h"
+#include "system_debug.h"
+#include "protocol_data.h"
+#include "rf_interface.h"
 
 // =============================
-// Variables globales
+// Global Variables
 // =============================
-volatile char rxQueue[UART_BUFFER_SIZE];
-volatile uint16_t rxHead = 0;
-volatile uint16_t rxTail = 0;
-volatile uint8_t rxOverflowed = 0;
-volatile uint32_t millis_counter = 0;
-volatile uint32_t last_tx_time = 0;
-volatile uint32_t tx_interval_ms = 5000;
-volatile uint8_t carrier_phase = 0;
-volatile uint32_t phase_sample_count = 0;
-volatile uint16_t bit_index = 0;
-volatile uint8_t tx_phase = IDLE_STATE;
-volatile uint8_t beacon_frame[MESSAGE_BITS] = {0};  // Initialisation
+volatile uint32_t millis_counter = 0;              // System time in milliseconds
+volatile uint32_t last_tx_time = 0;                // Timestamp of last transmission
+volatile uint32_t tx_interval_ms = 5000;           // Transmission interval (5s default)
+volatile uint8_t carrier_phase = 0;                // Current carrier phase position
+volatile uint32_t phase_sample_count = 0;           // Phase sample counter
+volatile uint16_t bit_index = 0;                   // Current bit position in frame
+volatile tx_phase_t tx_phase = IDLE_STATE;          // Current transmission state
+volatile uint8_t beacon_frame[MESSAGE_BITS] = {0};  // Transmission frame buffer
+volatile uint8_t transmission_complete_flag = 0;    // Transmission completion flag
 
-// Tables DAC
-#define COS_1P1_Q15  14865
-#define SIN_1P1_Q15  29197
-const uint16_t dac_table_plus[5] = {
-    DAC_OFFSET + (int16_t)((32767L * COS_1P1_Q15 - 0L * SIN_1P1_Q15) >> 18),
-    DAC_OFFSET + (int16_t)((10126L * COS_1P1_Q15 - 31163L * SIN_1P1_Q15) >> 18),
-    DAC_OFFSET + (int16_t)((-26510L * COS_1P1_Q15 - 19260L * SIN_1P1_Q15) >> 18),
-    DAC_OFFSET + (int16_t)((-26510L * COS_1P1_Q15 + 19260L * SIN_1P1_Q15) >> 18),
-    DAC_OFFSET + (int16_t)((10126L * COS_1P1_Q15 + 31163L * SIN_1P1_Q15) >> 18)
-};
+// RF envelope control
+volatile float envelope_gain = 0.0f;               // RF envelope gain (0.0-1.0)
+volatile uint16_t ramp_samples = RAMP_SAMPLES_DEFAULT;  // RF ramp duration in samples
+volatile uint16_t current_ramp_count = 0;          // Current position in ramp
 
-const uint16_t dac_table_minus[5] = {
-    DAC_OFFSET + (int16_t)((32767L * COS_1P1_Q15 + 0L * SIN_1P1_Q15) >> 18),
-    DAC_OFFSET + (int16_t)((10126L * COS_1P1_Q15 + 31163L * SIN_1P1_Q15) >> 18),
-    DAC_OFFSET + (int16_t)((-26510L * COS_1P1_Q15 + 19260L * SIN_1P1_Q15) >> 18),
-    DAC_OFFSET + (int16_t)((-26510L * COS_1P1_Q15 - 19260L * SIN_1P1_Q15) >> 18),
-    DAC_OFFSET + (int16_t)((10126L * COS_1P1_Q15 - 31163L * SIN_1P1_Q15) >> 18)
-};
+// Single-timer architecture variables
+volatile uint16_t modulation_counter = 0;           // Modulation sample counter
+volatile uint16_t sample_count = 0;                 // General purpose sample counter
+
+// RF control variables
+volatile uint8_t amp_enabled = 0;                  // RF amplifier state (0=off)
+volatile uint8_t current_power_mode = POWER_LOW;    // Current power mode
+
+// I/Q Modulation for ADL5375 with single DAC (dsPIC33CK64MC105)
+// RF modules managed by rf_interface.c
+
+// BPSK modulation values for Q channel (sin component)
+const uint16_t q_channel_plus_1_1_rad = 2048 + 1823;   // +1.1 rad: sin(1.1) * 2047 ≈ 1823
+const uint16_t q_channel_minus_1_1_rad = 2048 - 1823;  // -1.1 rad: sin(-1.1) * 2047 ≈ -1823
+const uint16_t i_channel_constant = 2048;              // Constant level for reference
+
+void system_halt(const char* message) {
+    while(1) {
+        DEBUG_LOG_FLUSH(message);
+        __delay_ms(1000);
+    }
+}
 
 // =============================
-// Fonctions d'initialisation
+// System Clock Initialization
 // =============================
 void init_clock(void) {
-    // Unlock sequence
-    __builtin_write_OSCCONH(0x78);
-    __builtin_write_OSCCONL(OSCCONL | 0x01);
+    // Select FRC as primary clock source
+    __builtin_write_OSCCONH(0x0000);
+    __builtin_write_OSCCONL(OSCCON | 0x01);
+    while(OSCCONbits.OSWEN);  // Wait for clock switch completion
     
-    OSCTUN = 0;
+    // Configure PLL for 100 MHz operation (FCY = 100 MHz)
+    // FRC = 8 MHz, Target FCY = 100 MHz → FOSC = 200 MHz
+    // FOSC = FIN × M / (N1 × N2 × N3) = 8 × 200 / (2 × 4 × 1) = 200 MHz
+    CLKDIVbits.PLLPRE = 1;     // N1 = 2 (Pre-diviseur)
+    PLLFBD = 199;              // M = 200 (Multiplicateur, register = M-1)
+    PLLDIVbits.POST1DIV = 3;   // N2 = 4 (Post-diviseur 1)
+    PLLDIVbits.POST2DIV = 0;   // N3 = 1 (Post-diviseur 2)
+
+    // Activate FRCPLL
+    __builtin_write_OSCCONH(0x01);
+    __builtin_write_OSCCONL(OSCCON | 0x01);
     
-    // PLL configuration for 100 MHz
-    CLKDIVbits.PLLPRE = 0;
-    PLLFBD = 48;
-    
-    // Switch to FRCPLL
-    __builtin_write_OSCCONH(0x03);
-    __builtin_write_OSCCONL(OSCCONL | 0x01);
-    
-    // Wait for stabilization
-    while(OSCCONbits.COSC != 0b011);
+    // Wait for PLL lock
+    while(OSCCONbits.OSWEN);
     while(!OSCCONbits.LOCK);
     
-    // Lock sequence
-    __builtin_write_OSCCONH(0x00);
-    __builtin_write_OSCCONL(OSCCONL & ~0x01);
+    // Handle PLL lock failure
+    if(!OSCCONbits.LOCK) {
+        system_halt("PLL lock failed");
+    }
 }
 
+// =============================
+// GPIO Initialization
+// =============================
 void init_gpio(void) {
-    // Configure switches
-    TRISBbits.TRISB12 = 1;   // S1: Frame type (Test/Exercice)
-    TRISBbits.TRISB13 = 1;   // S2: Frequency (5s/50s)
-    CNPDBbits.CNPDB12 = 1;
-    CNPDBbits.CNPDB13 = 1;
+    // Disable analog functionality
+    ANSELA = 0x0000; 
+    ANSELB = 0x0000;
+	ANSELD = 0x000;	
     
-    // Configure TX LED
-    TRISBbits.TRISB14 = 0;
-    LATBbits.LATB14 = 0;
+    // DAC output pin (RA3)
+    TRISAbits.TRISA3 = 0;     // Output
+    LATAbits.LATA3 = 0;       // Initial low state
     
-    // Configure RF Amplifier Control
-    TRISBbits.TRISB15 = 0;   // Amplifier enable
-    TRISBbits.TRISB11 = 0;   // Power level control
-    AMP_ENABLE_PIN = 0;
-    POWER_CTRL_PIN = 0;
+    // RF control pins
+    TRISBbits.TRISB15 = 0;    // Amplifier enable (output)
+    LATBbits.LATB15 = 0;      // Initially disabled
+    TRISBbits.TRISB11 = 0;    // Power level select (output)
+    LATBbits.LATB11 = 0;      // Initial low power mode
+    
+    // Transmission indicator LED (RD10)
+	ANSELDbits.ANSELD10 = 0;  // Digital mode
+    TRISDbits.TRISD10 = 0;    // Output
+    LATDbits.LATD10 = 0;      // Initially off
+    
+    // Configuration switches
+    TRISBbits.TRISB12 = 1;    // Frame type select (input)
+    CNPDBbits.CNPDB12 = 1;    // Enable pull-down
+    TRISBbits.TRISB13 = 1;    // Frequency select (input)
+    CNPDBbits.CNPDB13 = 1;    // Enable pull-down
+    
+    // DAC output configuration
+    ANSELAbits.ANSELA3 = 1;   // Analog mode
+    TRISAbits.TRISA3 = 0;     // Output
+    
+    // Debug pin (RB0)
+    TRISBbits.TRISB0 = 0;     // Output
+    ANSELBbits.ANSELB0 = 0;   // Digital mode
+    LATBbits.LATB0 = 0;       // Initial low state
 }
 
+// =============================
+// DAC Initialization
+// =============================
 void init_dac(void) {
-    ANSELBbits.ANSELB0 = 1;
-    TRISBbits.TRISB0 = 0;
+    // Configure DAC control registers
+    DAC1CONH = 0x0;
+    DAC1CONL = 0x8200; 
     
-    DAC1CONL = 0x0000;
-    DAC1CONH = 0x8000;
+    // Timing configuration
+    DACCTRL1L = 0x0040;      
+    DACCTRL2H = 0x008A;      
+    DACCTRL2L = 0x0055;      
     
-    uint16_t init_val = DAC_OFFSET << 4;
-    DAC1DATL = init_val & 0xFF;
-    DAC1DATH = (init_val >> 8) & 0x0F;
+    // Enable DAC
+    DAC1CONLbits.DACEN = 1;   
+    DAC1CONLbits.DACOEN = 1;  
+    
+    // Initial value (1.65V midpoint)
+    DAC1DATH = DAC_OFFSET;
+    
+    // Final activation
+    DACCTRL1Lbits.DACON = 1;  
+    
+    DEBUG_LOG_FLUSH("DAC initialized\r\n");
 }
 
+// =============================
+// Timer1 Initialization
+// =============================
 void init_timer1(void) {
-    T1CON = 0;
-    TMR1 = 0;
-    PR1 = (100000000UL / 200000) - 1; // SAMPLE_RATE_HZ = 200000
-    IFS0bits.T1IF = 0;
-    IPC0bits.T1IP = 5;
-    IEC0bits.T1IE = 1;
-    T1CONbits.TCKPS = 0;
-    T1CONbits.TON = 1;
-}
-
-void init_rf_amplifier(void) {
-    set_rf_power_level(POWER_LOW);
+    T1CON = 0;        // Clear configuration
+    TMR1 = 0;         // Reset timer counter
+    
+    // Calculate period for 6400 Hz sample rate
+    PR1 = (FCY / ACTUAL_SAMPLE_RATE_HZ) - 1;  // 100MHz/6.4kHz-1 = 15624
+    
+    // Timer configuration
+    T1CONbits.TCKPS = 0;    // No prescaler (1:1)
+    T1CONbits.TCS = 0;      // Internal clock (Fcy)
+    IPC0bits.T1IP = 7;      // Highest priority
+    IFS0bits.T1IF = 0;      // Clear interrupt flag
+    IEC0bits.T1IE = 1;      // Enable interrupt
+    T1CONbits.TON = 1;      // Start timer
+    
+    DEBUG_LOG_FLUSH("Timer1: PR1=");
+    debug_print_uint16(PR1);
+    DEBUG_LOG_FLUSH(", Freq=");
+    debug_print_uint32(FCY/(PR1+1));
+    DEBUG_LOG_FLUSH("Hz (expected 6400Hz)\r\n");
 }
 
 // =============================
-// Contr�le RF
+// Unified ISR for Envelope and Modulation
 // =============================
-void set_rf_power_level(uint8_t mode) {
-    POWER_CTRL_PIN = (mode == POWER_HIGH) ? 1 : 0;
-}
-
-void control_rf_amplifier(uint8_t state) {
-    if (state) {
-        __delay_us(100);
-        AMP_ENABLE_PIN = 1;
-        __delay_us(500);
-    } else {
-        AMP_ENABLE_PIN = 0;
-        __delay_us(100);
-    }
-}
-
-// =============================
-// Fonctions UART
-// =============================
-void UART1_Initialize(void) {
-    _RP34R = 0x0003;
-    _U1RXR = 32;
+void __attribute__((interrupt, auto_psv)) _T1Interrupt(void) {
+    static uint16_t debug_counter = 0;
+    static uint8_t pin_state = 0;
+    // Phase continuity handled in Biphase-L encoding below
     
-    IEC0bits.U1TXIE = 0;
-    IEC0bits.U1RXIE = 0;
-    IEC11bits.U1EVTIE = 0;
-
-    U1MODE = 0x0000;
-    U1MODEH = 0x0800;
-    U1STA = 0x0080;
-    U1STAH = 0x002E;
+    // Toggle debug pin (RB0) for timing analysis
+    LATBbits.LATB0 = pin_state = !pin_state;
     
-    U1BRG = (100000000UL / (16UL * 9600UL)) - 1;
-    U1BRGH = 0x0000;
-
-    rxHead = 0;
-    rxTail = 0;
-    rxOverflowed = 0;
-
-    IFS0bits.U1RXIF = 0;
-    IEC0bits.U1RXIE = 1;
-    IPC2bits.U1RXIP = 4;
-
-    U1MODEbits.UARTEN = 1;
-    U1MODEbits.UTXEN = 1;
-    U1MODEbits.URXEN = 1;
-}
-
-void __attribute__((__interrupt__, __auto_psv__)) _U1RXInterrupt(void) {
-    volatile uint16_t nextTail = (rxTail + 1) % UART_BUFFER_SIZE;
+    // Millisecond counter management
+    #define MS_PER_INCREMENT 6
+	static uint16_t sub_ms_counter = 0;
+		sub_ms_counter++;
+	if (sub_ms_counter >= MS_PER_INCREMENT) {
+		sub_ms_counter = 0;
+		millis_counter++;
+	}
     
-    if (nextTail == rxHead) {
-        rxOverflowed = 1;
-    } else {
-        rxQueue[rxTail] = U1RXREG;
-        rxTail = nextTail;
-    }
-    IFS0bits.U1RXIF = 0;
-}
+    // Biphase-L modulation handling
+    if (++modulation_counter >= MODULATION_INTERVAL) {
+        modulation_counter = 0;
+        uint16_t dac_value = DAC_OFFSET;
 
-uint8_t uart_get_line(char *buffer, uint16_t max_len) {
-    uint16_t len = 0;
-    uint16_t localTail = rxTail;
-    
-    if (rxOverflowed) {
-        buffer[0] = '\0';
-        rxOverflowed = 0;
-        return 0;
-    }
-    
-    while (localTail != rxHead && len < max_len - 1) {
-        char c = rxQueue[localTail];
-        buffer[len++] = c;
-        
-        if (++localTail >= UART_BUFFER_SIZE) {
-            localTail = 0;
-        }
-        
-        if (c == '\n') break;
-    }
-    
-    if (len > 0) {
-        rxTail = localTail;
-        buffer[len] = '\0';
-        return 1;
-    }
-    return 0;
-}
-
-void init_debug_uart(void) {
-    U2MODE = 0x0000;
-    U2MODEH = 0x0800;
-    U2STAH = 0x0000;
-    
-    U2BRG = (100000000UL / (4 * DEBUG_BAUD_RATE)) - 1;
-    U2MODEbits.BRGH = 1;
-    
-    U2MODEbits.UARTEN = 1;
-    U2MODEbits.UTXEN = 1;
-    
-    ANSELBbits.ANSELB9 = 0;
-    TRISBbits.TRISB9 = 0;
-}
-
-// =============================
-// Fonctions debug_print 
-// =============================
-
-void debug_print_char(char c) {
-    while (U2STAHbits.UTXBF);
-    U2TXREG = c;
-}
-
-void debug_print_str(const char *str) {
-    while (*str) debug_print_char(*str++);
-}
-
-void debug_print_hex(uint8_t value) {
-    const char hex_chars[] = "0123456789ABCDEF";
-    debug_print_char(hex_chars[(value >> 4) & 0x0F]);
-    debug_print_char(hex_chars[value & 0x0F]);
-}
-
-// Formatage portable pour entiers
-void debug_print_int32(int32_t value) {
-    char buffer[12];
-    snprintf(buffer, sizeof(buffer), "%ld", (long)value);  // Formatage 32-bit sign�
-    debug_print_str(buffer);
-}
-
-void debug_print_uint32(uint32_t value) {
-    char buffer[12];
-    snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)value);  // Formatage 32-bit non sign�
-    debug_print_str(buffer);
-}
-
-void debug_print_float(double value, int prec) {
-    char buffer[20];
-    snprintf(buffer, sizeof(buffer), "%.*f", prec, value);
-    debug_print_str(buffer);
-}
-
-void debug_print_hex24(uint32_t value) {
-    debug_print_hex((value >> 16) & 0xFF);
-    debug_print_hex((value >> 8) & 0xFF);
-    debug_print_hex(value & 0xFF);
-}
-
-void debug_print_hex16(uint16_t value) {
-    debug_print_hex((value >> 8) & 0xFF);
-    debug_print_hex(value & 0xFF);
-}
-
-void debug_print_hex64(uint64_t value) {
-    debug_print_hex((value >> 56) & 0xFF);
-    debug_print_hex((value >> 48) & 0xFF);
-    debug_print_hex((value >> 40) & 0xFF);
-    debug_print_hex((value >> 32) & 0xFF);
-    debug_print_hex((value >> 24) & 0xFF);
-    debug_print_hex((value >> 16) & 0xFF);
-    debug_print_hex((value >> 8) & 0xFF);
-    debug_print_hex(value & 0xFF);
-}
-
-void debug_print_hex32(uint32_t value) {
-    // Affiche les 32 bits en deux parties de 16 bits
-    debug_print_hex16((uint16_t)(value >> 16));
-    debug_print_hex16((uint16_t)(value & 0xFFFF));
-}
-
-// =============================
-// Interruption Timer1
-// =============================
-void __attribute__((__interrupt__, __auto_psv__)) _T1Interrupt(void) {
-    static uint16_t sample_count = 0;
-    static uint32_t amp_start_time = 0;
-    
-    sample_count++;
-    if (sample_count >= 200) {
-        sample_count = 0;
-        millis_counter++;
-    }
-    
-    uint16_t dac_value = DAC_OFFSET;
-    
-    	if (tx_phase == PREAMBLE_PHASE && phase_sample_count == 0) {
-        DEBUG_BREAKPOINT();
-    }
-    
-    switch(tx_phase) {
-        case PRE_AMPLI:
-            if (phase_sample_count == 0) {
-                control_rf_amplifier(1);
-                LATBbits.LATB14 = 1;
-                amp_start_time = millis_counter;
-                phase_sample_count = 1;
-            } else {
-                if ((millis_counter - amp_start_time) >= 1) {
-                    tx_phase = PREAMBLE_PHASE;
-                    phase_sample_count = 0;
-                    carrier_phase = 0;
+        switch(tx_phase) {
+            // RF ramp-up phase: no modulation
+            case PRE_AMPLI_RAMP_UP:
+                dac_value = DAC_OFFSET;  // Midpoint voltage
+                break;
+                
+            // RF ramp-down phase: no modulation
+            case POST_AMPLI_RAMP_DOWN:
+                dac_value = DAC_OFFSET;  // Midpoint voltage
+                break;
+                
+            // Unmodulated carrier phase  
+            case PREAMBLE_PHASE:
+                // For ADL5375: unmodulated = I constant, Q at midpoint
+                dac_value = DAC_OFFSET;  // Q channel at midpoint = unmodulated carrier
+                
+                // Check if preamble duration completed
+                if (++sample_count >= PREAMBLE_SAMPLES) {
+                    sample_count = 0;
+                    tx_phase = DATA_PHASE;
+                    // Phase reset for data transmission
                 }
-            }
-            break;
-            
-        case PREAMBLE_PHASE:
-            dac_value = dac_table_plus[carrier_phase];
-            carrier_phase = (carrier_phase + 1) % 5;
-            
-            if (++phase_sample_count >= PREAMBLE_SAMPLES) {
-                tx_phase = DATA_PHASE;
-                phase_sample_count = 0;
-                bit_index = 0;
-                carrier_phase = 0;
-            }
-            break;
-            
-        case DATA_PHASE:
-            if (bit_index < MESSAGE_BITS) {
-                uint8_t current_bit = beacon_frame[bit_index];
-                uint16_t half_bit = phase_sample_count / SAMPLES_PER_HALF_BIT;
-                
-                if (half_bit == 0) {
-                    dac_value = (current_bit == 1) ? 
-                        dac_table_plus[carrier_phase] : 
-                        dac_table_minus[carrier_phase];
-                } else {
-                    dac_value = (current_bit == 1) ? 
-                        dac_table_minus[carrier_phase] : 
-                        dac_table_plus[carrier_phase];
-                }
-                
-                carrier_phase = (carrier_phase + 1) % 5;
-                
-                if (++phase_sample_count >= SAMPLES_PER_SYMBOL) {
-                    phase_sample_count = 0;
-                    bit_index++;
+                break;
+
+            // Data transmission phase
+            case DATA_PHASE:
+                if (bit_index < MESSAGE_BITS) {
+                    uint8_t current_bit = beacon_frame[bit_index];
+                    float phase_shift;
                     
-                    if (bit_index >= MESSAGE_BITS) {
-                        tx_phase = POSTAMBLE_PHASE;
+                    // Biphase-L encoding: bit 1 = +/-, bit 0 = -/+
+                    if (current_bit == 1) {
+                        phase_shift = (sample_count < OVERSAMPLING/2) ? 
+                            +PHASE_SHIFT_RADIANS : -PHASE_SHIFT_RADIANS;
+                    } else {
+                        phase_shift = (sample_count < OVERSAMPLING/2) ? 
+                            -PHASE_SHIFT_RADIANS : +PHASE_SHIFT_RADIANS;
+                    }
+                    
+                    // Phase continuity maintained automatically in I/Q modulation
+                    
+                    // Calculate DAC value with current envelope (Q channel)
+                    dac_value = calculate_modulated_value(phase_shift, 0, 1);
+                    
+                    // Debug logging (sample every 500 cycles)
+                    static uint16_t log_counter = 0;
+                    if (++log_counter >= 500) {
+                        log_counter = 0;
+                        ISR_LOG_PHASE(sample_count & 0x0F, envelope_gain, dac_value);
+                    } 
+
+                    // End of symbol handling
+                    if (++sample_count >= OVERSAMPLING) {
+                        sample_count = 0;
+                        bit_index++;
+                        if (bit_index >= MESSAGE_BITS) {
+                            tx_phase = POSTAMBLE_PHASE;
+                        }
                     }
                 }
+                break;
+
+            // Post-transmission silence
+            case POSTAMBLE_PHASE:
+                dac_value = DAC_OFFSET;  // Midpoint voltage
+                if (++sample_count >= POSTAMBLE_SAMPLES) {
+                    tx_phase = POST_AMPLI_RAMP_DOWN;
+                    current_ramp_count = 0;
+                    sample_count = 0;
+                }
+                break;
+                
+            // System idle state
+            case IDLE_STATE:
+                dac_value = DAC_OFFSET;  // Midpoint voltage
+                if (++debug_counter >= 1000) {
+                    debug_counter = 0;
+                    ISR_LOG_PHASE(carrier_phase & 0x0F, envelope_gain, dac_value);
+                }
+                break;
+        }
+        
+        // Update DAC output register
+        DAC1DATH = dac_value & 0x0FFF;
+        
+        // Transmission completion detection
+        static tx_phase_t previous_phase = IDLE_STATE;
+        if (tx_phase == IDLE_STATE && previous_phase != IDLE_STATE) {
+            transmission_complete_flag = 1;
+        }
+        previous_phase = tx_phase;
+    }
+
+    // RF envelope management (independent of modulation timing)
+    switch(tx_phase) {
+        case PRE_AMPLI_RAMP_UP:
+            if(current_ramp_count < ramp_samples) {
+                envelope_gain = (float)current_ramp_count / ramp_samples;
+                current_ramp_count++;
+            } else {
+                envelope_gain = 1.0f;
+                tx_phase = PREAMBLE_PHASE;
+                sample_count = 0;  // Reset for preamble
             }
             break;
-            
-        case POSTAMBLE_PHASE:
-            dac_value = DAC_OFFSET;
-            
-            if (++phase_sample_count >= POSTAMBLE_SAMPLES) {
-                tx_phase = POST_AMPLI;
-                phase_sample_count = 0;
+
+        case POST_AMPLI_RAMP_DOWN:
+            if(current_ramp_count < ramp_samples) {
+                envelope_gain = 1.0f - (float)current_ramp_count / ramp_samples;
+                current_ramp_count++;
+            } else {
+                envelope_gain = 0.0f;
+                control_rf_amplifier(0);
+                LED_TX_PIN = 1;  // Turn off TX LED (inverted logic)
+                tx_phase = IDLE_STATE;
             }
             break;
-            
-        case POST_AMPLI:
-            control_rf_amplifier(0);
-            LATBbits.LATB14 = 0;
-            tx_phase = IDLE_STATE;
+
+        default:
             break;
     }
-    
-    uint16_t dac_val_aligned = dac_value << 4;
-    DAC1DATL = dac_val_aligned & 0xFF;
-    DAC1DATH = (dac_val_aligned >> 8) & 0x0F;
-  
+
+    // Clear Timer1 interrupt flag
     IFS0bits.T1IF = 0;
+}
+
+// =============================
+// I/Q Modulation Value Calculation for ADL5375
+// =============================
+uint16_t calculate_modulated_value(float phase_shift, uint8_t carrier_phase, uint8_t apply_envelope) {
+    // For ADL5375: DAC drives Q channel, I channel is hardware constant
+    // BPSK: Q = sin(±1.1 rad) based on Biphase-L bit
+    
+    uint16_t base_value;
+    
+    // Select Q channel value based on phase shift (±1.1 rad)
+    if (phase_shift >= 0) {
+        base_value = q_channel_plus_1_1_rad;   // sin(+1.1) for '1' bit first half
+    } else {
+        base_value = q_channel_minus_1_1_rad;  // sin(-1.1) for '0' bit first half  
+    }
+    
+    // Apply envelope gain if requested (RF ramp up/down)
+    if (apply_envelope) {
+        int32_t modulated_value = DAC_OFFSET + 
+            (int32_t)((base_value - DAC_OFFSET) * envelope_gain);
+        
+        // Clamp to DAC range [0, 4095]
+        if (modulated_value < 0) return 0;
+        if (modulated_value > 4095) return 4095;
+        return (uint16_t)modulated_value;
+    }
+    
+    return base_value;
+}
+
+// =============================
+// RF Rise/Fall Time Calibration
+// =============================
+void calibrate_rise_fall_times(void) {
+    // Placeholder for actual measurement
+    float actual_rise_time = 125.0f;
+    float actual_fall_time = 115.0f; 
+    
+    // Calculate symmetry
+    float symmetry = fabsf(actual_rise_time - actual_fall_time) / 
+                    fabsf(actual_rise_time + actual_fall_time);
+    
+    // Symmetry check
+    if (symmetry > SYMMETRY_THRESHOLD) {
+        DEBUG_LOG_FLUSH("Symmetry error: ");
+        debug_print_float(symmetry, 3);
+        DEBUG_LOG_FLUSH("\r\n");
+    }
+    
+    // Adjust ramp samples based on timing
+    if (actual_rise_time < RISE_TIME_MIN_US) 
+        ramp_samples = (uint16_t)(ramp_samples * 1.1f);
+    else if (actual_rise_time > RISE_TIME_MAX_US) 
+        ramp_samples = (uint16_t)(ramp_samples * 0.9f);
+    
+    DEBUG_LOG_FLUSH("Ramp samples: ");
+    debug_print_uint32(ramp_samples);
+    DEBUG_LOG_FLUSH("\r\n");
+}
+
+// =============================
+// Transmission Start Sequence
+// =============================
+void start_transmission(volatile const uint8_t* data) {
+    static uint8_t first_run = 1;
+    if(first_run) {
+        calibrate_rise_fall_times();
+        first_run = 0;
+    }
+    
+	last_tx_time = millis_counter;
+	
+    // Copy data to frame buffer atomically
+    __builtin_disable_interrupts();
+    for (uint16_t i = 0; i < MESSAGE_BITS; i++) {
+        beacon_frame[i] = data[i];
+    }
+    __builtin_enable_interrupts();
+    
+    // Reset transmission state
+    sample_count = 0;
+    bit_index = 0;
+    current_ramp_count = 0;
+    envelope_gain = 0.0f;
+    
+    // Activate RF systems
+    control_rf_amplifier(1);       // Enable RF amplifier
+    LED_TX_PIN = 0;                // Turn on transmission LED
+    tx_phase = PRE_AMPLI_RAMP_UP;  // Start transmission sequence
+}
+
+// RF functions moved to rf_interface.c
+//============================
+//
+//============================
+void set_tx_interval(uint32_t interval_ms) {
+    __builtin_disable_interrupts();
+    tx_interval_ms = interval_ms;
+    __builtin_enable_interrupts();
+}
+
+// =============================
+// System Initialization
+// =============================
+void system_init(void) {
+    init_clock();              // Configure system clock
+    init_gpio();               // Initialize GPIO pins
+    init_dac();                // Set up DAC module
+    system_debug_init();       // Initialize debug system
+    init_comm_uart();          // Set up communication UART
+    init_timer1();             // Configure sample timer
+    
+    // Initialize RF modules (managed by rf_interface.c)
+    rf_initialize_all_modules(); // Initialize complete RF chain
+    
+    // Initialize time management variables
+    last_tx_time = 0;
+    //tx_interval_ms = 5000;
+    ramp_samples = RAMP_SAMPLES_DEFAULT;
+    envelope_gain = 0.0f;
+    
+    // Clear frame buffer
+    memset((void*)beacon_frame, 0, MESSAGE_BITS);
 }

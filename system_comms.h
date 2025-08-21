@@ -1,72 +1,101 @@
 #ifndef SYSTEM_COMMS_H
 #define SYSTEM_COMMS_H
 
-#include <stdint.h>
-#include <xc.h>
-#include <inttypes.h>
-// =============================
-// Configuration matérielle
-// =============================
-#define DEBUG_UART_TX_PIN  _RB9
-#define DEBUG_BAUD_RATE    115200
-#define UART_BUFFER_SIZE   512
-#define DAC_OFFSET         2048
-#define AMP_ENABLE_PIN     LATBbits.LATB15
-#define POWER_CTRL_PIN     LATBbits.LATB11
-#define POWER_LOW          0
-#define POWER_HIGH         1
+#include "system_definitions.h"
 
 // =============================
-// Prototypes
+// ELT Standard Configuration
 // =============================
+#define SYMBOL_RATE_HZ          400     // Mandatory 400 baud symbol rate
+#define OVERSAMPLING            16      // 16 samples per symbol
+#define ACTUAL_SAMPLE_RATE_HZ   (SYMBOL_RATE_HZ * OVERSAMPLING)  // 6400 Hz
 
-// Initialisation
-void init_clock(void);
-void init_gpio(void);
-void init_dac(void);
-void init_timer1(void);
-void init_rf_amplifier(void);
-void UART1_Initialize(void);
-void init_debug_uart(void);
+// Transmission segment durations (ms)
+#define PREAMBLE_DURATION_MS    160     // Unmodulated carrier
+#define MODULATED_DURATION_MS   360     // Biphase-L modulated data
+#define POSTAMBLE_DURATION_MS   320     // Silence after transmission
+#define MODULATION_INTERVAL 1
+#define SYMMETRY_THRESHOLD 0.05f
+#define RISE_TIME_MIN_US 50
+#define RISE_TIME_MAX_US 150
 
-// RF Control
-void set_rf_power_level(uint8_t mode);
-void control_rf_amplifier(uint8_t state);
+// Sample calculations
+#define PREAMBLE_SAMPLES        ((uint32_t)PREAMBLE_DURATION_MS * ACTUAL_SAMPLE_RATE_HZ / 1000)   // 1024
+#define POSTAMBLE_SAMPLES       ((uint32_t)POSTAMBLE_DURATION_MS * ACTUAL_SAMPLE_RATE_HZ / 1000)  // 2048
 
-// UART Functions
-uint8_t uart_get_line(char *buffer, uint16_t max_len);
-void debug_print_char(char c);
-void debug_print_str(const char *str);
-void debug_print_float(double value, int prec);  // Ajouté
-void debug_print_int32(int32_t value);  // Ajouté
-void debug_print_uint32(uint32_t value); 
+// Message structure
+#define SYNC_BITS               15      // Synchronization bits
+#define FRAME_SYNC_BITS         9       // Frame synchronization bits
+#define DATA_BITS               120     // Payload data bits (144 - 15 - 9)
+#define MESSAGE_BITS            144     // Total bits (SYNC + FRAME_SYNC + DATA)
 
-// Timer Related
-void __attribute__((__interrupt__, __auto_psv__)) _T1Interrupt(void);
-
-// // Déclaration des fonctions de debug
-void debug_print_int(int value);      // Déclaration pour cohérence
-void debug_print_str(const char *str);
-void debug_print_hex(uint8_t value);  // Uniformiser sur uint8_t
-void debug_print_char(char c);
-void debug_print_float(double f, int decimals);
-void debug_print_hex64(uint64_t value);
-void debug_print_hex32(uint32_t value);
+// RF Parameters
+#define RAMP_SAMPLES_DEFAULT    10      // ~1.56ms @6400Hz (<2ms required)
+#define PHASE_SHIFT_RADIANS     1.1f    // ï¿½1.1 rad (C/S T.001 standard)
 
 // =============================
-// Variables globales partagées
+// Hardware Configuration
 // =============================
-extern volatile char rxQueue[UART_BUFFER_SIZE];
-extern volatile uint16_t rxHead;
-extern volatile uint16_t rxTail;
-extern volatile uint8_t rxOverflowed;
-extern volatile uint32_t millis_counter;
-extern volatile uint8_t tx_phase;
-extern volatile uint32_t last_tx_time;
-extern volatile uint32_t tx_interval_ms;
-extern volatile uint8_t carrier_phase;
-extern volatile uint32_t phase_sample_count;
-extern volatile uint16_t bit_index;
+#define AMP_ENABLE_PIN          LATBbits.LATB15  // RF amplifier enable
+#define POWER_CTRL_PIN          LATBbits.LATB11  // Power level control
+#define POWER_LOW               0                // Low power mode
+#define POWER_HIGH              1                // High power mode
+#define LED_TX_PIN              LATDbits.LATD10  // Transmission indicator LED
+#define DAC_OFFSET              2048             // 1.65V mid-point
 
+// =============================
+// Transmission States
+// =============================
+typedef enum {
+    IDLE_STATE,             // System idle
+    PRE_AMPLI_RAMP_UP,      // RF power ramp up
+    PREAMBLE_PHASE,         // Unmodulated carrier
+    DATA_PHASE,             // Biphase-L modulated data
+    POSTAMBLE_PHASE,        // Post-transmission silence
+    POST_AMPLI_RAMP_DOWN    // RF power ramp down
+} tx_phase_t;
+
+// =============================
+// Function Prototypes
+// =============================
+
+// Initialization functions
+void init_clock(void);       // System clock configuration
+void init_gpio(void);        // GPIO pin initialization
+void init_dac(void);         // DAC module setup
+void init_timer1(void);      // Timer1 for sample generation
+void system_init(void);      // Main system initialization
+
+// RF Control functions - moved to rf_interface.h
+
+// Transmission management
+void calibrate_rise_fall_times(void);    // RF ramp timing calibration
+void start_transmission(volatile const uint8_t* data);  // Start TX sequence
+uint16_t calculate_modulated_value(float phase_shift, uint8_t carrier_phase, uint8_t apply_envelope);  // BPSK modulation
+
+void set_tx_interval(uint32_t interval_ms); 
+
+// Interrupt Service Routines
+void __attribute__((__interrupt__, __auto_psv__)) _T1Interrupt(void);  // Timer1 ISR
+
+// =============================
+// Shared Global Variables
+// =============================
+extern volatile uint32_t millis_counter;          // System time in milliseconds
+extern volatile tx_phase_t tx_phase;              // Current transmission phase
+extern volatile uint32_t last_tx_time;            // Last transmission timestamp
+extern volatile uint32_t tx_interval_ms;          // Transmission interval
+extern volatile uint8_t carrier_phase;            // Current carrier phase
+extern volatile uint32_t phase_sample_count;      // Phase sample counter
+extern volatile uint16_t bit_index;               // Current bit index in frame
+extern volatile uint8_t beacon_frame[MESSAGE_BITS]; // Transmission frame data
+extern volatile float envelope_gain;              // RF envelope gain (0.0-1.0)
+extern volatile uint16_t ramp_samples;            // RF ramp duration in samples
+extern volatile uint16_t current_ramp_count;      // Current ramp position
+extern volatile uint16_t modulation_counter;      // Modulation sample counter
+extern volatile uint16_t sample_count;            // General sample counter
+extern volatile uint8_t amp_enabled;              // RF amplifier state
+extern volatile uint8_t current_power_mode;       // Current power mode
+extern volatile uint8_t transmission_complete_flag; // TX completion flag
 
 #endif

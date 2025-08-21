@@ -14,27 +14,21 @@
 #include <stdio.h>
 #include <string.h>
 #include <libpic30.h>
-#include <math.h>  // For GPS calculations
+#include <math.h>
 #include <stdbool.h>
-// Debug UART Configuration
-#define DEBUG_UART_TX_PIN  _RB9  // Curiosity Nano: RB9/CNANO2
-#define DEBUG_BAUD_RATE    115200
-
-#ifdef	__cplusplus
-extern "C" {
-#endif
+#include <assert.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <inttypes.h>
 
 // Clock Configuration
 #pragma config FNOSC = FRC          // Fast RC Oscillator
 #pragma config FCKSM = CSECMD       // Clock switching enabled
+#pragma config IESO = OFF			// Two-Speed Start-up disabled
 #pragma config FWDTEN = 0           // Watchdog timer disabled
 #pragma config POSCMD = NONE        // Primary oscillator disabled
 #pragma config OSCIOFNC = ON        // OSC2 as digital I/O
-#pragma config ICS = PGD1           // ICD Communication Channel Select
+#pragma config ICS = PGD3           // ICD Communication Channel Select
 #pragma config JTAGEN = OFF         // JTAG Enable bit
-
-#ifdef	__cplusplus
-}
-#endif
-
+    
 #endif	/* INCLUDES_H */
