@@ -14,6 +14,13 @@ extern volatile uint8_t beacon_frame[];
 // D�claration de la fonction start_beacon_frame
 void start_beacon_frame(beacon_frame_type_t frame_type);
 
+// Lecture du switch de sélection mode
+beacon_frame_type_t get_frame_type_from_switch(void) {
+    // RB12 = 0 (pull-down) → TEST mode
+    // RB12 = 1 (switch pressed) → EXERCISE mode
+    return PORTBbits.RB12 ? BEACON_EXERCISE_FRAME : BEACON_TEST_FRAME;
+}
+
 uint8_t should_transmit_beacon(void) {
     uint8_t phase;
     uint32_t current_millis, last_tx;
@@ -32,18 +39,20 @@ uint8_t should_transmit_beacon(void) {
 int main(void) {
 	__builtin_disable_interrupts();
     system_init();
-    set_tx_interval(5000);  // 5 secondes entre les transmissions
+    set_tx_interval(5000);  // Initial interval (will be adjusted by frame type)
     __builtin_enable_interrupts();
     
     DEBUG_LOG_FLUSH("System initialized\r\n");
 
     rf_set_power_level(RF_POWER_LOW);
     
-    DEBUG_LOG_FLUSH("Starting test frame transmission\r\n");
-    start_beacon_frame(BEACON_TEST_FRAME);  // G�n�re et transmet la vraie trame
+    beacon_frame_type_t frame_type = get_frame_type_from_switch();
+    DEBUG_LOG_FLUSH("Starting transmission - Mode: ");
+    DEBUG_LOG_FLUSH(frame_type == BEACON_TEST_FRAME ? "TEST\r\n" : "EXERCISE\r\n");
+    start_beacon_frame(frame_type);  // Generate according to switch
 
     while(1) {
-		process_uart_commands();  // Gestion des commandes
+		process_uart_commands();  // Handle commands
 		
         uint32_t current_time;
         __builtin_disable_interrupts();
@@ -57,13 +66,15 @@ int main(void) {
             isr_log_tail = (isr_log_tail + 1) % ISR_LOG_BUF_SIZE;
         }
         
-        // D�clenchement transmission p�riodique (trame d'exercice)
+        // Periodic transmission trigger (read switch each time)
         if (should_transmit_beacon()) {
-            DEBUG_LOG_FLUSH("Starting periodic transmission (Exercise frame)\r\n");
-            start_beacon_frame(BEACON_EXERCISE_FRAME);
+            beacon_frame_type_t current_frame_type = get_frame_type_from_switch();
+            DEBUG_LOG_FLUSH("Starting periodic transmission - Mode: ");
+            DEBUG_LOG_FLUSH(current_frame_type == BEACON_TEST_FRAME ? "TEST\r\n" : "EXERCISE\r\n");
+            start_beacon_frame(current_frame_type);
         }
         
-        // Rapport d'�tat p�riodique
+        // Periodic status report
         static uint32_t last_status = 0;
         if((current_time - last_status) >= 1000) {
             last_status = current_time;

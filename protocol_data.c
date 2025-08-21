@@ -524,11 +524,13 @@ void build_exercise_frame(void) {
 void start_beacon_frame(beacon_frame_type_t frame_type) {
     switch(frame_type) {
         case BEACON_TEST_FRAME:
-            build_test_frame();       // Mode TEST avec coordonn�es fixes et puissance reduite
+            build_test_frame();       // TEST mode with fixed coordinates and low power
+            set_tx_interval(5000);    // DEBUG: Disabled for scope (50ms forced)
             break;
             
         case BEACON_EXERCISE_FRAME:
-            build_exercise_frame();   // Mode EXERCICE avec puissance HIGH
+            build_exercise_frame();   // EXERCISE mode with high power
+            set_tx_interval(50000);   // DEBUG: Disabled for scope (50ms forced)
             break;
     }
     

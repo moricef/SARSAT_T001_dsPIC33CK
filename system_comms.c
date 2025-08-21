@@ -181,13 +181,24 @@ void __attribute__((interrupt, auto_psv)) _T1Interrupt(void) {
     LATBbits.LATB0 = pin_state = !pin_state;
     
     // Millisecond counter management
-    #define MS_PER_INCREMENT 6
-	static uint16_t sub_ms_counter = 0;
-		sub_ms_counter++;
-	if (sub_ms_counter >= MS_PER_INCREMENT) {
-		sub_ms_counter = 0;
-		millis_counter++;
-	}
+    // Timer1 = 6400 Hz → 1ms = 6.4 échantillons
+    #define MS_PER_INCREMENT 6  // Approximation 6400/6 = 1066 Hz (trop rapide!)
+    // CORRECTION: 6400 Hz / 6.4 = 1000 Hz (1ms exact)
+    static uint16_t sub_ms_counter = 0;
+    static uint8_t fractional_counter = 0;
+    
+    sub_ms_counter++;
+    // Simulation de 6.4 échantillons par ms avec 6 + 0.4 fractionnaire
+    if (sub_ms_counter >= 6) {
+        sub_ms_counter = 0;
+        fractional_counter += 4;  // Accumulation 0.4
+        if (fractional_counter >= 10) {
+            fractional_counter -= 10;
+            // Skip this increment (6.4 au lieu de 6)
+        } else {
+            millis_counter++;
+        }
+    }
     
     // Biphase-L modulation handling
     if (++modulation_counter >= MODULATION_INTERVAL) {
