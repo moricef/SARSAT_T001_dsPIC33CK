@@ -14,7 +14,7 @@ This COSPAS-SARSAT beacon generator is based on and inspired by:
 
 ### Hardware Implementation
 - **Platform Migration**: MATLAB → dsPIC33CK embedded C
-- **RF Architecture**: Added ADF4351 + ADL5375 + RA07H4047M chain
+- **RF Architecture**: Added ADF4351 + ADL5375 + RA07M4047M chain
 - **I/Q Modulation**: Optimized for ADL5375 hardware modulator
 - **Power Management**: Dual-mode 100mW/5W for training/exercises
 

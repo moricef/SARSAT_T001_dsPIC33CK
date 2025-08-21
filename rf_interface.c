@@ -1,5 +1,5 @@
 // rf_interface.c - RF Modules Control for COSPAS-SARSAT Generator
-// ADF4351 (PLL) + ADL5375 (I/Q Modulator) + RA07H4047M (PA)
+// ADF4351 (PLL) + ADL5375 (I/Q Modulator) + RA07M4047M (PA)
 // Hardware validated against datasheets DS70005399D, ADF4351, ADL5375
 
 #include "includes.h"
@@ -28,7 +28,7 @@
 #define ADL5375_ENABLE_PIN   LATBbits.LATB6   // Enable
 #define ADL5375_ENABLE_TRIS  TRISBbits.TRISB6
 
-// RA07H4047M Power Amplifier control pins (400-520 MHz, 100mW/5W)
+// RA07M4047M Power Amplifier control pins (400-520 MHz, 100mW/5W)
 #define AMP_ENABLE_PIN       LATBbits.LATB15  // PA Enable  
 #define POWER_CTRL_PIN       LATBbits.LATB11  // Power Level Select
 #define AMP_ENABLE_TRIS      TRISBbits.TRISB15
@@ -144,7 +144,7 @@ void rf_init_power_amplifier(void) {
     if (initialized) return;
     initialized = 1;
     
-    // Configure RA07H4047M control pins
+    // Configure RA07M4047M control pins
     AMP_ENABLE_TRIS = 0;    // PA enable (output)
     POWER_CTRL_TRIS = 0;    // Power level select (output)
     
@@ -156,7 +156,7 @@ void rf_init_power_amplifier(void) {
     rf_current_power_mode = RF_POWER_LOW;
     rf_amp_enabled = 0;
     
-    DEBUG_LOG_FLUSH("RA07H4047M PA initialized: Low power, OFF\r\n");
+    DEBUG_LOG_FLUSH("RA07M4047M PA initialized: Low power, OFF\r\n");
 }
 
 void rf_set_power_level(uint8_t mode) {
@@ -171,7 +171,7 @@ void rf_set_power_level(uint8_t mode) {
             __delay_us(50);
         }
         
-        // Set new power level on RA07H4047M
+        // Set new power level on RA07M4047M
         POWER_CTRL_PIN = (mode == RF_POWER_HIGH) ? 1 : 0;
         rf_current_power_mode = mode;
         
@@ -195,7 +195,7 @@ void rf_control_amplifier_chain(uint8_t state) {
         rf_adl5375_enable(1);
         __delay_ms(5);              // ADL5375 enable settling time
         
-        // 3. Enable RA07H4047M power amplifier (last in chain)
+        // 3. Enable RA07M4047M power amplifier (last in chain)
         AMP_ENABLE_PIN = 1;
         __delay_us(500);            // PA enable settling time
         rf_amp_enabled = 1;
@@ -229,7 +229,7 @@ void rf_initialize_all_modules(void) {
     // Initialize modules in dependency order
     rf_init_adf4351();           // PLL synthesizer @ 403 MHz
     rf_init_adl5375();           // I/Q modulator
-    rf_init_power_amplifier();   // RA07H4047M PA (100mW/5W)
+    rf_init_power_amplifier();   // RA07M4047M PA (100mW/5W)
     
     DEBUG_LOG_FLUSH("RF modules initialization complete\r\n");
 }

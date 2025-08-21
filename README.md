@@ -9,7 +9,7 @@
 ## 📡 Architecture RF
 
 ```
-dsPIC33CK64MC105 → ADF4351 (403MHz PLL) → ADL5375 (I/Q Mod) → RA07H4047M (PA) → 403MHz Output
+dsPIC33CK64MC105 → ADF4351 (403MHz PLL) → ADL5375 (I/Q Mod) → RA07M4047M (PA) → 403MHz Output
         ↓              ↓                      ↓                    ↓
     DAC + SPI     25MHz → 403MHz         I=1.65V, Q=DAC      100mW / 5W
 ```
@@ -26,7 +26,7 @@ dsPIC33CK64MC105 → ADF4351 (403MHz PLL) → ADL5375 (I/Q Mod) → RA07H4047M (
 - **Microcontrôleur** : dsPIC33CK64MC105 Curiosity Nano
 - **PLL Synthesizer** : ADF4351 (35 MHz - 4.4 GHz)
 - **I/Q Modulator** : ADL5375 (400 MHz - 6 GHz)  
-- **Power Amplifier** : RA07H4047M (400-520 MHz)
+- **Power Amplifier** : RA07M4047M (400-520 MHz)
 
 ### ⚡ Puissances Configurables
 - **100mW** : Tests locaux ADRASEC
@@ -38,7 +38,7 @@ dsPIC33CK64MC105 → ADF4351 (403MHz PLL) → ADL5375 (I/Q Mod) → RA07H4047M (
 - MPLAB X IDE v6.25+
 - XC16 Compiler v3.21+
 - dsPIC33CK64MC105 Curiosity Nano
-- Modules RF : ADF4351 + ADL5375 + RA07H4047M
+- Modules RF : ADF4351 + ADL5375 + RA07M4047M
 
 ### Compilation
 ```bash
@@ -183,4 +183,4 @@ Ce projet est sous licence [CC BY-NC-SA 4.0](LICENSE) - Usage éducatif et forma
 
 > 🚨 **IMPORTANT** : Ce générateur utilise 403 MHz pour éviter les fausses alertes COSPAS-SARSAT. Usage formation uniquement.
 
-> 📡 **ADRASEC** : Association pour le Développement de la Recherche et de l'Assistance aux Sauvetages
+> 📡 **ADRASEC** : Association Départementale des RadioAmateurs au service de la Sécurité Civile

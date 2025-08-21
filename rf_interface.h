@@ -23,7 +23,7 @@ void rf_init_adl5375(void);                    // Initialize ADL5375 I/Q modulat
 void rf_adl5375_enable(uint8_t state);         // Enable/disable modulator
 
 // =============================
-// RA07H4047M Power Amplifier Functions
+// RA07M4047M Power Amplifier Functions
 // =============================
 void rf_init_power_amplifier(void);            // Initialize PA control
 void rf_set_power_level(uint8_t mode);         // Set power level (LOW/HIGH)
