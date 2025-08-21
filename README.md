@@ -36,7 +36,7 @@ dsPIC33CK64MC105 → ADF4351 (403MHz PLL) → ADL5375 (I/Q Mod) → RA07M4047M (
 
 ### Prérequis
 - MPLAB X IDE v6.25+
-- XC16 Compiler v3.21+
+- XC-DSC Compiler v3.21+
 - dsPIC33CK64MC105 Curiosity Nano
 - Modules RF : ADF4351 + ADL5375 + RA07M4047M
 
