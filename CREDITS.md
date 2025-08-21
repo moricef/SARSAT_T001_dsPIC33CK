@@ -78,7 +78,7 @@ This COSPAS-SARSAT beacon generator is based on and inspired by:
 ### Educational Mission
 - **ADRASEC Volunteers**: Dedication to search and rescue training
 - **SATER Instructors**: Emergency response education excellence
-- **Radio Amateurs**: Technical expertise and frequency coordination
+- **Radioamateurs**: Technical expertise and frequency coordination
 
 ---
 
