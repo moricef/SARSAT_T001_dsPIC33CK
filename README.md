@@ -9,9 +9,18 @@
 ## 📡 Architecture RF
 
 ```
-dsPIC33CK64MC105 → ADF4351 (403MHz PLL) → ADL5375 (I/Q Mod) → RA07M4047M (PA) → 403MHz Output
-        ↓              ↓                      ↓                    ↓
-    DAC + SPI     25MHz → 403MHz         I=1.65V, Q=DAC      100mW / 5W
+dsPIC33CK64MC105 → ADF4351 (403MHz PLL) → ADL5375-05 (I/Q Mod) → RA07M4047M (PA) → 403MHz Output
+        ↓              ↓                        ↓                      ↓
+    DAC + SPI     25MHz → 403MHz         I=500mV, Q=DAC+bias      100mW / 5W
+                                        (Interface adaptée)
+```
+
+### Interface dsPIC33CK ↔ ADL5375-05
+```
+RA3 DACOUT → Circuit adaptation → QBBP (canal Q modulé)
+(0-1V)       R1(50Ω) + C1(100nF)   QBBN (500mV bias)
+                                   IBBP (500mV constant)  
+                                   IBBN (500mV constant)
 ```
 
 ## 🎯 Fonctionnalités
@@ -25,8 +34,9 @@ dsPIC33CK64MC105 → ADF4351 (403MHz PLL) → ADL5375 (I/Q Mod) → RA07M4047M (
 ### 🔧 Hardware Supporté
 - **Microcontrôleur** : dsPIC33CK64MC105 Curiosity Nano
 - **PLL Synthesizer** : ADF4351 (35 MHz - 4.4 GHz)
-- **I/Q Modulator** : ADL5375 (400 MHz - 6 GHz)  
+- **I/Q Modulator** : ADL5375-05 (400 MHz - 6 GHz, bias 500mV)  
 - **Power Amplifier** : RA07M4047M (400-520 MHz)
+- **Interface Circuit** : Adaptation niveaux DAC → I/Q inputs
 
 ### ⚡ Puissances Configurables
 - **100mW** : Tests locaux ADRASEC
@@ -38,7 +48,8 @@ dsPIC33CK64MC105 → ADF4351 (403MHz PLL) → ADL5375 (I/Q Mod) → RA07M4047M (
 - MPLAB X IDE v6.25+
 - XC-DSC Compiler v3.21+
 - dsPIC33CK64MC105 Curiosity Nano
-- Modules RF : ADF4351 + ADL5375 + RA07M4047M
+- Modules RF : ADF4351 + ADL5375-05 + RA07M4047M
+- Circuit d'interface : Résistances 50Ω + condensateurs + référence 500mV
 
 ### Compilation
 ```bash
@@ -70,6 +81,7 @@ SARSAT_IQ_BPSK_dsPIC33CK_RF.X/
 ├── rf_interface.c/h        # Drivers RF (ADF4351, ADL5375, PA)
 ├── protocol_data.c/h       # Génération trames T.001
 ├── system_debug.c/h        # Debugging et logs UART
+├── ADL5375_INTERFACE_CIRCUIT.md # Circuit d'adaptation DAC → I/Q
 ├── Docs/                   # Documentation technique
 │   ├── Microchip_PIC/      # Datasheets dsPIC33CK
 │   ├── adf4351.pdf         # Datasheet PLL
@@ -88,7 +100,8 @@ SARSAT_IQ_BPSK_dsPIC33CK_RF.X/
 
 ### Hardware Validation
 - ✅ **dsPIC33CK64MC105** : Validé contre DS70005399D
-- ✅ **I/Q Modulation** : DAC 12-bit → Q channel, I=constant
+- ✅ **I/Q Modulation** : DAC 12-bit → ADL5375-05 Q channel (500mV bias)
+- ✅ **Interface Circuit** : Adaptation 0-3.3V → 0-1V + bias 500mV
 - ✅ **RF Chain** : Séquences power-up/down optimisées
 
 ## 🎓 Usage ADRASEC/SATER
@@ -122,11 +135,12 @@ Compatible avec le décodeur 406 MHz disponible dans `../dec406_v10.2/`
 ## 🗺️ Roadmap
 
 - [x] **Génération 1G** : Terminée et validée
-- [x] **Modulation I/Q** : Optimisée pour ADL5375
+- [x] **Modulation I/Q** : Optimisée pour ADL5375-05 (bias 500mV)
+- [x] **Interface DAC→I/Q** : Circuit d'adaptation implémenté
 - [x] **Architecture modulaire** : RF drivers séparés
 - [ ] **Génération 2G** : BCH(250,202) en cours
 - [ ] **Interface Web** : Configuration via navigateur
-- [ ] **Tests Hardware** : Validation RF complète
+- [ ] **Tests Hardware** : Validation RF complète avec oscilloscope
 
 ## 🏆 Credits
 
@@ -144,6 +158,7 @@ Ce projet s'appuie sur les concepts et algorithmes du projet SARSAT original de 
 
 ### Guides Techniques
 - **Architecture RF** : [Schémas](Docs/Chaine\ RF\ complete.png)
+- **Interface ADL5375-05** : [Circuit d'adaptation](ADL5375_INTERFACE_CIRCUIT.md)
 - **Guide d'intégration** : [Documentation](Docs/Guide\ d'intégration\ dsPIC33CK\ +\ CS-T001.txt)
 
 ## 🤝 Contribution

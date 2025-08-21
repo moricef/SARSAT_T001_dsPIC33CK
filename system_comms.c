@@ -218,8 +218,8 @@ void __attribute__((interrupt, auto_psv)) _T1Interrupt(void) {
                 
             // Unmodulated carrier phase  
             case PREAMBLE_PHASE:
-                // For ADL5375: unmodulated = I constant, Q at midpoint
-                dac_value = DAC_OFFSET;  // Q channel at midpoint = unmodulated carrier
+                // For ADL5375-05: unmodulated = Q at bias level (500mV)
+                dac_value = (uint16_t)((0.5f * (float)DAC_RESOLUTION) / VOLTAGE_REF_3V3);  // 500mV bias level
                 
                 // Check if preamble duration completed
                 if (++sample_count >= PREAMBLE_SAMPLES) {
@@ -246,8 +246,8 @@ void __attribute__((interrupt, auto_psv)) _T1Interrupt(void) {
                     
                     // Phase continuity maintained automatically in I/Q modulation
                     
-                    // Calculate DAC value with current envelope (Q channel)
-                    dac_value = calculate_modulated_value(phase_shift, 0, 1);
+                    // Calculate ADL5375-05 Q channel value with current envelope
+                    dac_value = calculate_adl5375_q_channel(phase_shift, 1);
                     
                     // Debug logging (sample every 500 cycles)
                     static uint16_t log_counter = 0;
@@ -332,33 +332,60 @@ void __attribute__((interrupt, auto_psv)) _T1Interrupt(void) {
 }
 
 // =============================
-// I/Q Modulation Value Calculation for ADL5375
+// ADL5375-05 Interface Functions
 // =============================
-uint16_t calculate_modulated_value(float phase_shift, uint8_t carrier_phase, uint8_t apply_envelope) {
-    // For ADL5375: DAC drives Q channel, I channel is hardware constant
-    // BPSK: Q = sin(±1.1 rad) based on Biphase-L bit
+
+// Convert DAC value to ADL5375-05 compatible range (0-1V + 500mV bias)
+uint16_t adapt_dac_for_adl5375(uint16_t dac_value) {
+    // Input: dac_value 0-4095 (0-3.3V from dsPIC33CK)
+    // Output: DAC value for 0-1V range suitable for ADL5375-05
     
-    uint16_t base_value;
+    // Convert DAC units to voltage
+    float voltage = ((float)dac_value * VOLTAGE_REF_3V3) / (float)DAC_RESOLUTION;
     
-    // Select Q channel value based on phase shift (±1.1 rad)
+    // Map to ADL5375-05 range: 0-1V (bias±swing handled externally)
+    voltage = voltage * (ADL5375_MAX_VOLTAGE / VOLTAGE_REF_3V3);
+    
+    // Clamp to valid range
+    if (voltage < ADL5375_MIN_VOLTAGE) voltage = ADL5375_MIN_VOLTAGE;
+    if (voltage > ADL5375_MAX_VOLTAGE) voltage = ADL5375_MAX_VOLTAGE;
+    
+    // Convert back to DAC units
+    return (uint16_t)((voltage * (float)DAC_RESOLUTION) / VOLTAGE_REF_3V3);
+}
+
+// Calculate Q channel value for ADL5375-05 BPSK modulation
+uint16_t calculate_adl5375_q_channel(float phase_shift, uint8_t apply_envelope) {
+    // ADL5375-05: 500mV bias ± 500mV swing = 0-1V range
+    // Q channel modulation: bias + sin(±1.1 rad) * swing/2
+    
+    float q_voltage = (float)ADL5375_BIAS_MV / 1000.0f;  // 0.5V bias
+    
+    // Add BPSK modulation based on phase shift
     if (phase_shift >= 0) {
-        base_value = q_channel_plus_1_1_rad;   // sin(+1.1) for '1' bit first half
+        q_voltage += (sinf(PHASE_SHIFT_RADIANS) * (float)ADL5375_SWING_MV / 2000.0f);  // +modulation
     } else {
-        base_value = q_channel_minus_1_1_rad;  // sin(-1.1) for '0' bit first half  
+        q_voltage += (sinf(-PHASE_SHIFT_RADIANS) * (float)ADL5375_SWING_MV / 2000.0f); // -modulation  
     }
     
-    // Apply envelope gain if requested (RF ramp up/down)
+    // Apply envelope gain for RF ramp up/down
     if (apply_envelope) {
-        int32_t modulated_value = DAC_OFFSET + 
-            (int32_t)((base_value - DAC_OFFSET) * envelope_gain);
-        
-        // Clamp to DAC range [0, 4095]
-        if (modulated_value < 0) return 0;
-        if (modulated_value > 4095) return 4095;
-        return (uint16_t)modulated_value;
+        float bias_voltage = (float)ADL5375_BIAS_MV / 1000.0f;
+        q_voltage = bias_voltage + (q_voltage - bias_voltage) * envelope_gain;
     }
     
-    return base_value;
+    // Clamp to ADL5375-05 range [0, 1V]
+    if (q_voltage < ADL5375_MIN_VOLTAGE) q_voltage = ADL5375_MIN_VOLTAGE;
+    if (q_voltage > ADL5375_MAX_VOLTAGE) q_voltage = ADL5375_MAX_VOLTAGE;
+    
+    // Convert to DAC units (0-4095 for 0-3.3V, scaled to 0-1V range)
+    return (uint16_t)((q_voltage * (float)DAC_RESOLUTION) / VOLTAGE_REF_3V3);
+}
+
+// Legacy function for backward compatibility
+uint16_t calculate_modulated_value(float phase_shift, uint8_t carrier_phase, uint8_t apply_envelope) {
+    // Use new ADL5375-05 optimized function
+    return calculate_adl5375_q_channel(phase_shift, apply_envelope);
 }
 
 // =============================

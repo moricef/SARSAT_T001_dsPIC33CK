@@ -41,7 +41,18 @@
 #define POWER_LOW               0                // Low power mode
 #define POWER_HIGH              1                // High power mode
 #define LED_TX_PIN              LATDbits.LATD10  // Transmission indicator LED
+
+// DAC Configuration  
 #define DAC_OFFSET              2048             // 1.65V mid-point
+#define DAC_RESOLUTION          4096             // 12-bit DAC
+#define SAMPLE_FREQ_HZ          6400             // 6.4 kHz sample rate
+
+// ADL5375-05 Interface Configuration
+#define ADL5375_BIAS_MV         500              // 500mV bias level for ADL5375-05
+#define ADL5375_SWING_MV        500              // 500mV p-p per pin (1V p-p differential)
+#define ADL5375_MIN_VOLTAGE     0.0f             // Minimum voltage (bias - swing/2)
+#define ADL5375_MAX_VOLTAGE     1.0f             // Maximum voltage (bias + swing/2)
+#define VOLTAGE_REF_3V3         3.3f             // dsPIC33CK supply voltage
 
 // =============================
 // Transmission States
@@ -72,6 +83,10 @@ void system_init(void);      // Main system initialization
 void calibrate_rise_fall_times(void);    // RF ramp timing calibration
 void start_transmission(volatile const uint8_t* data);  // Start TX sequence
 uint16_t calculate_modulated_value(float phase_shift, uint8_t carrier_phase, uint8_t apply_envelope);  // BPSK modulation
+
+// ADL5375-05 Interface functions
+uint16_t adapt_dac_for_adl5375(uint16_t dac_value);     // Convert DAC levels for ADL5375-05
+uint16_t calculate_adl5375_q_channel(float phase_shift, uint8_t apply_envelope);  // Q channel for ADL5375-05
 
 void set_tx_interval(uint32_t interval_ms); 
 
