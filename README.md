@@ -2,7 +2,6 @@
 
 Générateur de balises 403 MHz conforme COSPAS-SARSAT pour formation ADRASEC et exercices SATER
 
-## Architecture RF
 =======
 # COSPAS-SARSAT Beacon Generator
 
