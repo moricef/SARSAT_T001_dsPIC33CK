@@ -32,9 +32,6 @@ RA3 DACOUT → Circuit adaptation → QBBP (canal Q modulé)
 ```
 
 <<<<<<< HEAD
-## Fonctionnalités
-
-### Générateur de trames 1ère Génération (T.001)
 =======
 ## Fonctionnalités
 
@@ -46,7 +43,6 @@ RA3 DACOUT → Circuit adaptation → QBBP (canal Q modulé)
 - **Modes** : TEST (5s) et EXERCICE (50s)
 
 <<<<<<< HEAD
-### Hardware Supporté
 =======
 ### Hardware Supporté
 >>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
@@ -58,12 +54,6 @@ RA3 DACOUT → Circuit adaptation → QBBP (canal Q modulé)
 
 <<<<<<< HEAD
 ### Puissances Configurables
-- **100mW** : Tests locaux ADRASEC
-- **5W** : Exercices SATER longue portée
-
-## Quick Start
-=======
-### ⚡ Puissances Configurables
 - **100mW** : Tests locaux ADRASEC
 - **5W** : Exercices SATER longue portée
 
@@ -99,7 +89,6 @@ rf_set_power_level(RF_POWER_HIGH);  // 5W
 ```
 
 <<<<<<< HEAD
-## Structure du Projet
 =======
 ## Structure du Projet
 >>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
@@ -120,21 +109,6 @@ SARSAT_IQ_BPSK_dsPIC33CK_RF.X/
 ```
 
 <<<<<<< HEAD
-## Validation Technique
-
-### Conformité Standards
-- **COSPAS-SARSAT T.001** : Trames 144 bits, BCH(21,15)
-- **Modulation** : Biphase-L ±1.1 rad @ 400 bauds
-- **Timing** : Preamble 160ms, Data 360ms, Postamble 320ms
-- **GPS Encoding** : PDF-1 + PDF-2 avec offset 4 secondes
-
-### Hardware Validation
-- **dsPIC33CK64MC105** : Validé contre DS70005399D
-- **I/Q Modulation** : DAC 12-bit → ADL5375-05 Q channel (500mV bias)
-- **Interface Circuit** : Adaptation 0-3.3V → 0-1V + bias 500mV
-- **RF Chain** : Séquences power-up/down optimisées
-
-## Usage ADRASEC/SATER
 =======
 ## Validation Technique
 
@@ -180,7 +154,6 @@ Compatible avec le décodeur 406 MHz disponible dans `../dec406_v10.2/`
 | **Trame** | 144 bits | 15+9+120 bits |
 
 <<<<<<< HEAD
-## Roadmap
 =======
 ## Roadmap
 >>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
@@ -194,7 +167,6 @@ Compatible avec le décodeur 406 MHz disponible dans `../dec406_v10.2/`
 - [ ] **Optimisations futures** : Amélioration performances T.001
 
 <<<<<<< HEAD
-## Credits
 =======
 ## Credits
 >>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
@@ -204,7 +176,6 @@ Compatible avec le décodeur 406 MHz disponible dans `../dec406_v10.2/`
 Ce projet s'appuie sur les concepts et algorithmes du projet SARSAT original de loorisr, adapté pour une implémentation hardware embarquée dsPIC33CK avec modules RF dédiés. Voir [CREDITS.md](CREDITS.md) pour les remerciements complets.
 
 <<<<<<< HEAD
-## Documentation
 =======
 ## Documentation
 >>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
@@ -221,7 +192,6 @@ Ce projet s'appuie sur les concepts et algorithmes du projet SARSAT original de 
 - **Guide d'intégration** : [Documentation](Docs/Guide\ d'intégration\ dsPIC33CK\ +\ CS-T001.txt)
 
 <<<<<<< HEAD
-## Contribution
 =======
 ## Contribution
 >>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
@@ -235,12 +205,6 @@ Ce projet est destiné à la **formation ADRASEC** et aux **exercices SATER**.
 - **Validation** : Tests conformité équipements
 - **Usage réel** : Fréquence 403 MHz non autorisée pour vraies alertes
 
-## Contact
-=======
-- **Formation** : Tests décodeurs 406 MHz
-- **Exercices** : Simulation balises détresse
-- **Validation** : Tests conformité équipements
-- **Usage réel** : ⚠️ Fréquence 403 MHz non autorisée pour vraies alertes
 
 ## Contact
 >>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
@@ -251,7 +215,7 @@ Ce projet est destiné à la **formation ADRASEC** et aux **exercices SATER**.
 - **Compatibilité** : Décodeur 406 MHz intégré
 
 <<<<<<< HEAD
-## Licence
+
 =======
 ## Licence
 >>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
@@ -262,21 +226,6 @@ Ce projet est sous licence [CC BY-NC-SA 4.0](LICENSE) - Usage éducatif et forma
 
 ### Permissions
 <<<<<<< HEAD
-- **Partage** : Copier et redistribuer
-- **Adaptation** : Modifier et développer  
-- **Formation** : Usage ADRASEC/SATER
-
-### Restrictions  
-- **Commercial** : Pas d'usage commercial
-- **Attribution** : Créditer l'auteur original
-- **ShareAlike** : Même licence pour modifications
-
----
-
-**IMPORTANT** : Ce générateur utilise 403 MHz pour éviter les fausses alertes COSPAS-SARSAT. Usage formation uniquement.
-
-**ADRASEC** : Association Départementale des RadioAmateurs au service de la Sécurité Civile
-=======
 - **Partage** : Copier et redistribuer
 - **Adaptation** : Modifier et développer  
 - **Formation** : Usage ADRASEC/SATER
