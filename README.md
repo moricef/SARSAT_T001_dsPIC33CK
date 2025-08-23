@@ -5,7 +5,7 @@ Générateur de balises 403 MHz conforme COSPAS-SARSAT pour formation ADRASEC et
 
 ## Architecture RF
 =======
-# 🛰️ COSPAS-SARSAT Beacon Generator
+# COSPAS-SARSAT Beacon Generator
 
 [![Build Status](https://img.shields.io/badge/MPLAB%20X-Compile%20Success-brightgreen)](https://github.com)
 [![COSPAS-SARSAT](https://img.shields.io/badge/Standard-T.001%20Compliant-blue)](https://cospas-sarsat.int)
@@ -13,7 +13,7 @@ Générateur de balises 403 MHz conforme COSPAS-SARSAT pour formation ADRASEC et
 
 > **Générateur de balises 406 MHz conforme COSPAS-SARSAT pour formation ADRASEC et exercices SATER**
 
-## 📡 Architecture RF
+## Architecture RF
 >>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
 
 ```
@@ -36,9 +36,9 @@ RA3 DACOUT → Circuit adaptation → QBBP (canal Q modulé)
 
 ### Générateur de trames 1ère Génération (T.001)
 =======
-## 🎯 Fonctionnalités
+## Fonctionnalités
 
-### ✅ Générateur de trames 1ère Génération (T.001)
+### Générateur de trames 1ère Génération (T.001)
 >>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
 - **Modulation** : Biphase-L BPSK (±1.1 rad)
 - **Trames** : 112/144 bits avec BCH error correction
@@ -48,7 +48,7 @@ RA3 DACOUT → Circuit adaptation → QBBP (canal Q modulé)
 <<<<<<< HEAD
 ### Hardware Supporté
 =======
-### 🔧 Hardware Supporté
+### Hardware Supporté
 >>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
 - **Microcontrôleur** : dsPIC33CK64MC105 Curiosity Nano
 - **PLL Synthesizer** : ADF4351 (35 MHz - 4.4 GHz)
@@ -67,7 +67,7 @@ RA3 DACOUT → Circuit adaptation → QBBP (canal Q modulé)
 - **100mW** : Tests locaux ADRASEC
 - **5W** : Exercices SATER longue portée
 
-## 🚀 Quick Start
+## Quick Start
 >>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
 
 ### Prérequis
@@ -101,7 +101,7 @@ rf_set_power_level(RF_POWER_HIGH);  // 5W
 <<<<<<< HEAD
 ## Structure du Projet
 =======
-## 📋 Structure du Projet
+## Structure du Projet
 >>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
 
 ```
@@ -136,21 +136,21 @@ SARSAT_IQ_BPSK_dsPIC33CK_RF.X/
 
 ## Usage ADRASEC/SATER
 =======
-## 🛠️ Validation Technique
+## Validation Technique
 
 ### Conformité Standards
-- ✅ **COSPAS-SARSAT T.001** : Trames 144 bits, BCH(21,15)
-- ✅ **Modulation** : Biphase-L ±1.1 rad @ 400 bauds
-- ✅ **Timing** : Preamble 160ms, Data 360ms, Postamble 320ms
-- ✅ **GPS Encoding** : PDF-1 + PDF-2 avec offset 4 secondes
+- **COSPAS-SARSAT T.001** : Trames 144 bits, BCH(21,15)
+- **Modulation** : Biphase-L ±1.1 rad @ 400 bauds
+- **Timing** : Preamble 160ms, Data 360ms, Postamble 320ms
+- **GPS Encoding** : PDF-1 + PDF-2 avec offset 4 secondes
 
 ### Hardware Validation
-- ✅ **dsPIC33CK64MC105** : Validé contre DS70005399D
-- ✅ **I/Q Modulation** : DAC 12-bit → ADL5375-05 Q channel (500mV bias)
-- ✅ **Interface Circuit** : Adaptation 0-3.3V → 0-1V + bias 500mV
-- ✅ **RF Chain** : Séquences power-up/down optimisées
+- **dsPIC33CK64MC105** : Validé contre DS70005399D
+- **I/Q Modulation** : DAC 12-bit → ADL5375-05 Q channel (500mV bias)
+- **Interface Circuit** : Adaptation 0-3.3V → 0-1V + bias 500mV
+- **RF Chain** : Séquences power-up/down optimisées
 
-## 🎓 Usage ADRASEC/SATER
+## Usage ADRASEC/SATER
 >>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
 
 ### Formation Locale (100mW)
@@ -168,7 +168,7 @@ start_beacon_frame(BEACON_EXERCISE_FRAME);  // Trames toutes les 50s
 ### Intégration Décodeur
 Compatible avec le décodeur 406 MHz disponible dans `../dec406_v10.2/`
 
-## 📊 Spécifications Techniques
+## Spécifications Techniques
 
 | Paramètre | Valeur | Conformité |
 |-----------|--------|------------|
@@ -182,7 +182,7 @@ Compatible avec le décodeur 406 MHz disponible dans `../dec406_v10.2/`
 <<<<<<< HEAD
 ## Roadmap
 =======
-## 🗺️ Roadmap
+## Roadmap
 >>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
 
 - [x] **Génération 1G** : Terminée et validée
@@ -196,7 +196,7 @@ Compatible avec le décodeur 406 MHz disponible dans `../dec406_v10.2/`
 <<<<<<< HEAD
 ## Credits
 =======
-## 🏆 Credits
+## Credits
 >>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
 
 **Based on original work by [loorisr/sarsat](https://github.com/loorisr/sarsat)**
@@ -206,7 +206,7 @@ Ce projet s'appuie sur les concepts et algorithmes du projet SARSAT original de 
 <<<<<<< HEAD
 ## Documentation
 =======
-## 📚 Documentation
+## Documentation
 >>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
 
 ### Datasheets Intégrées
@@ -223,7 +223,7 @@ Ce projet s'appuie sur les concepts et algorithmes du projet SARSAT original de 
 <<<<<<< HEAD
 ## Contribution
 =======
-## 🤝 Contribution
+## Contribution
 >>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
 
 Ce projet est destiné à la **formation ADRASEC** et aux **exercices SATER**. 
@@ -237,12 +237,12 @@ Ce projet est destiné à la **formation ADRASEC** et aux **exercices SATER**.
 
 ## Contact
 =======
-- ✅ **Formation** : Tests décodeurs 406 MHz
-- ✅ **Exercices** : Simulation balises détresse
-- ✅ **Validation** : Tests conformité équipements
-- ❌ **Usage réel** : ⚠️ Fréquence 403 MHz non autorisée pour vraies alertes
+- **Formation** : Tests décodeurs 406 MHz
+- **Exercices** : Simulation balises détresse
+- **Validation** : Tests conformité équipements
+- **Usage réel** : ⚠️ Fréquence 403 MHz non autorisée pour vraies alertes
 
-## 📧 Contact
+## Contact
 >>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
 
 **Développé pour les ADRASEC de France**
@@ -253,7 +253,7 @@ Ce projet est destiné à la **formation ADRASEC** et aux **exercices SATER**.
 <<<<<<< HEAD
 ## Licence
 =======
-## ⚖️ Licence
+## Licence
 >>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
 
 **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International**
@@ -277,18 +277,18 @@ Ce projet est sous licence [CC BY-NC-SA 4.0](LICENSE) - Usage éducatif et forma
 
 **ADRASEC** : Association Départementale des RadioAmateurs au service de la Sécurité Civile
 =======
-- ✅ **Partage** : Copier et redistribuer
-- ✅ **Adaptation** : Modifier et développer  
-- ✅ **Formation** : Usage ADRASEC/SATER
+- **Partage** : Copier et redistribuer
+- **Adaptation** : Modifier et développer  
+- **Formation** : Usage ADRASEC/SATER
 
 ### Restrictions  
-- ❌ **Commercial** : Pas d'usage commercial
-- ⚠️ **Attribution** : Créditer l'auteur original
-- 🔄 **ShareAlike** : Même licence pour modifications
+- **Commercial** : Pas d'usage commercial
+- **Attribution** : Créditer l'auteur original
+- **ShareAlike** : Même licence pour modifications
 
 ---
 
-> 🚨 **IMPORTANT** : Ce générateur utilise 403 MHz pour éviter les fausses alertes COSPAS-SARSAT. Usage formation uniquement.
+> **IMPORTANT** : Ce générateur utilise 403 MHz pour éviter les fausses alertes COSPAS-SARSAT. Usage formation uniquement.
 
-> 📡 **ADRASEC** : Association Départementale des RadioAmateurs au service de la Sécurité Civile
+> **ADRASEC** : Association Départementale des RadioAmateurs au service de la Sécurité Civile
 >>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
