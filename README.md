@@ -4,7 +4,7 @@
 [![COSPAS-SARSAT](https://img.shields.io/badge/Standard-T.001%20Compliant-blue)](https://cospas-sarsat.int)
 [![License](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-orange)](LICENSE)
 
-> **Générateur de balises 406 MHz conforme COSPAS-SARSAT pour formation ADRASEC et exercices SATER**
+> **Générateur de balises 403 MHz conforme COSPAS-SARSAT pour formation ADRASEC et exercices SATER**
 
 ## Architecture RF
 
