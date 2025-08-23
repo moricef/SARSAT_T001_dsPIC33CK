@@ -1,9 +1,4 @@
-# COSPAS-SARSAT Beacon Generator
-
-Générateur de balises 403 MHz conforme COSPAS-SARSAT pour formation ADRASEC et exercices SATER
-
-
-# COSPAS-SARSAT Beacon Generator
+# COSPAS-SARSAT T001 - 1st Generation Beacon (dsPIC33CK64MC105)
 
 [![Build Status](https://img.shields.io/badge/MPLAB%20X-Compile%20Success-brightgreen)](https://github.com)
 [![COSPAS-SARSAT](https://img.shields.io/badge/Standard-T.001%20Compliant-blue)](https://cospas-sarsat.int)
