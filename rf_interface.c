@@ -123,6 +123,12 @@ void rf_adf4351_enable_output(uint8_t state) {
     DEBUG_LOG_FLUSH(state ? "ADF4351 RF output ON\r\n" : "ADF4351 RF output OFF\r\n");
 }
 
+<<<<<<< HEAD
+//============================
+// ADL5375 RF MOdule
+//============================
+=======
+>>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
 void rf_init_adl5375(void) {
     // Configure ADL5375 enable pin
     ADL5375_ENABLE_TRIS = 0;    // Output
@@ -139,6 +145,12 @@ void rf_adl5375_enable(uint8_t state) {
     DEBUG_LOG_FLUSH(state ? "ADL5375 enabled\r\n" : "ADL5375 disabled\r\n");
 }
 
+<<<<<<< HEAD
+//============================
+// RA07M4047M RF Power Amplifier
+//============================
+=======
+>>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
 void rf_init_power_amplifier(void) {
     static uint8_t initialized = 0;
     if (initialized) return;
@@ -257,4 +269,8 @@ void rf_system_halt(const char* message) {
         DEBUG_LOG_FLUSH("\r\n");
         __delay_ms(1000);
     }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
