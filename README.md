@@ -42,7 +42,7 @@ RA3 DACOUT → Circuit adaptation → QBBP (canal Q modulé)
 
 =======
 ### Hardware Supporté
-8
+
 - **Microcontrôleur** : dsPIC33CK64MC105 Curiosity Nano
 - **PLL Synthesizer** : ADF4351 (35 MHz - 4.4 GHz)
 - **I/Q Modulator** : ADL5375-05 (400 MHz - 6 GHz, bias 500mV)  
@@ -54,7 +54,6 @@ RA3 DACOUT → Circuit adaptation → QBBP (canal Q modulé)
 - **5W** : Exercices SATER longue portée
 
 ## Quick Start
-8
 
 ### Prérequis
 - MPLAB X IDE v6.25+
@@ -83,7 +82,6 @@ start_beacon_frame(BEACON_EXERCISE_FRAME);
 rf_set_power_level(RF_POWER_LOW);   // 100mW
 rf_set_power_level(RF_POWER_HIGH);  // 5W
 ```
-
 
 =======
 ## Structure du Projet
@@ -149,7 +147,6 @@ Compatible avec le décodeur 406 MHz disponible dans `../dec406_v10.2/`
 | **Puissance** | 100mW / 5W | Configurable |
 | **Trame** | 144 bits | 15+9+120 bits |
 
-<<<<<<< HEAD
 =======
 ## Roadmap
 
@@ -171,7 +168,6 @@ Compatible avec le décodeur 406 MHz disponible dans `../dec406_v10.2/`
 
 Ce projet s'appuie sur les concepts et algorithmes du projet SARSAT original de loorisr, adapté pour une implémentation hardware embarquée dsPIC33CK avec modules RF dédiés. Voir [CREDITS.md](CREDITS.md) pour les remerciements complets.
 
-<<<<<<< HEAD
 =======
 ## Documentation
 
@@ -187,7 +183,6 @@ Ce projet s'appuie sur les concepts et algorithmes du projet SARSAT original de 
 - **Interface ADL5375-05** : [Circuit d'adaptation](ADL5375_INTERFACE_CIRCUIT.md)
 - **Guide d'intégration** : [Documentation](Docs/Guide\ d'intégration\ dsPIC33CK\ +\ CS-T001.txt)
 
-
 =======
 ## Contribution
 
@@ -195,21 +190,18 @@ Ce projet s'appuie sur les concepts et algorithmes du projet SARSAT original de 
 Ce projet est destiné à la **formation ADRASEC** et aux **exercices SATER**. 
 
 ### Applications
-<<<<<<< HEAD
+
 - **Formation** : Tests décodeurs 403 MHz
 - **Exercices** : Simulation balises détresse
 - **Validation** : Tests conformité équipements
 - **Usage réel** : Fréquence 403 MHz non autorisée pour vraies alertes
 
-
 ## Contact
-8
 
 **Développé pour les ADRASEC de France**
 - **Usage** : Formation et exercices uniquement
 - **Support** : Documentation technique incluse
 - **Compatibilité** : Décodeur 406 MHz intégré
-
 
 
 =======
