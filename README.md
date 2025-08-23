@@ -86,8 +86,7 @@ SARSAT_IQ_BPSK_dsPIC33CK_RF.X/
 │   ├── Microchip_PIC/      # Datasheets dsPIC33CK
 │   ├── adf4351.pdf         # Datasheet PLL
 │   ├── adl5375.pdf         # Datasheet I/Q modulator
-│   └── T001-OCT-24-2024.pdf # Standard COSPAS-SARSAT
-└── second_generation/      # Développement 2G (en cours)
+│   └── T001-OCT-24-2024.pdf # Standard COSPAS-SARSAT T.001
 ```
 
 ## 🛠️ Validation Technique
@@ -138,9 +137,9 @@ Compatible avec le décodeur 406 MHz disponible dans `../dec406_v10.2/`
 - [x] **Modulation I/Q** : Optimisée pour ADL5375-05 (bias 500mV)
 - [x] **Interface DAC→I/Q** : Circuit d'adaptation implémenté
 - [x] **Architecture modulaire** : RF drivers séparés
-- [ ] **Génération 2G** : BCH(250,202) en cours
 - [ ] **Interface Web** : Configuration via navigateur
 - [ ] **Tests Hardware** : Validation RF complète avec oscilloscope
+- [ ] **Optimisations futures** : Amélioration performances T.001
 
 ## 🏆 Credits
 
