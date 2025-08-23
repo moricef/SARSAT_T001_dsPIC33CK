@@ -2,7 +2,7 @@
 
 Générateur de balises 403 MHz conforme COSPAS-SARSAT pour formation ADRASEC et exercices SATER
 
-=======
+
 # COSPAS-SARSAT Beacon Generator
 
 [![Build Status](https://img.shields.io/badge/MPLAB%20X-Compile%20Success-brightgreen)](https://github.com)
@@ -29,7 +29,7 @@ RA3 DACOUT → Circuit adaptation → QBBP (canal Q modulé)
 ```
 
 
-=======
+
 ## Fonctionnalités
 
 ### Générateur de trames 1ère Génération (T.001)
@@ -39,7 +39,7 @@ RA3 DACOUT → Circuit adaptation → QBBP (canal Q modulé)
 - **Fréquences** : 403 MHz (évite fausses alertes SARSAT)
 - **Modes** : TEST (5s) et EXERCICE (50s)
 
-=======
+
 ### Hardware Supporté
 
 - **Microcontrôleur** : dsPIC33CK64MC105 Curiosity Nano
@@ -82,7 +82,7 @@ rf_set_power_level(RF_POWER_LOW);   // 100mW
 rf_set_power_level(RF_POWER_HIGH);  // 5W
 ```
 
-=======
+
 ## Structure du Projet
 
 
@@ -102,7 +102,7 @@ SARSAT_IQ_BPSK_dsPIC33CK_RF.X/
 ```
 
 
-=======
+
 ## Validation Technique
 
 ### Conformité Standards
@@ -146,7 +146,7 @@ Compatible avec le décodeur 406 MHz disponible dans `../dec406_v10.2/`
 | **Puissance** | 100mW / 5W | Configurable |
 | **Trame** | 144 bits | 15+9+120 bits |
 
-=======
+
 ## Roadmap
 
 
@@ -159,7 +159,7 @@ Compatible avec le décodeur 406 MHz disponible dans `../dec406_v10.2/`
 - [ ] **Optimisations futures** : Amélioration performances T.001
 
 
-=======
+
 ## Credits
 
 
@@ -167,7 +167,7 @@ Compatible avec le décodeur 406 MHz disponible dans `../dec406_v10.2/`
 
 Ce projet s'appuie sur les concepts et algorithmes du projet SARSAT original de loorisr, adapté pour une implémentation hardware embarquée dsPIC33CK avec modules RF dédiés. Voir [CREDITS.md](CREDITS.md) pour les remerciements complets.
 
-=======
+
 ## Documentation
 
 
@@ -182,7 +182,7 @@ Ce projet s'appuie sur les concepts et algorithmes du projet SARSAT original de 
 - **Interface ADL5375-05** : [Circuit d'adaptation](ADL5375_INTERFACE_CIRCUIT.md)
 - **Guide d'intégration** : [Documentation](Docs/Guide\ d'intégration\ dsPIC33CK\ +\ CS-T001.txt)
 
-=======
+
 ## Contribution
 
 
@@ -203,7 +203,7 @@ Ce projet est destiné à la **formation ADRASEC** et aux **exercices SATER**.
 - **Compatibilité** : Décodeur 406 MHz intégré
 
 
-=======
+
 ## Licence
 
 
