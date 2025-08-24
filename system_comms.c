@@ -60,9 +60,9 @@ void init_clock(void) {
     // FRC = 8 MHz, Target FCY = 100 MHz → FOSC = 200 MHz
     // FOSC = FIN × M / (N1 × N2 × N3) = 8 × 200 / (2 × 4 × 1) = 200 MHz
     CLKDIVbits.PLLPRE = 1;     // N1 = 2 (Pre-diviseur)
-    PLLFBD = 199;              // M = 200 (Multiplicateur, register = M-1)
-    PLLDIVbits.POST1DIV = 3;   // N2 = 4 (Post-diviseur 1)
-    PLLDIVbits.POST2DIV = 0;   // N3 = 1 (Post-diviseur 2)
+    PLLFBD = 125;              // M = 200 (Multiplicateur, register = M-1)
+    PLLDIVbits.POST1DIV = 5;   // N2 = 4 (Post-diviseur 1)
+    PLLDIVbits.POST2DIV = 1;   // N3 = 1 (Post-diviseur 2)
 
     // Activate FRCPLL
     __builtin_write_OSCCONH(0x01);
