@@ -5,6 +5,36 @@
 #include <stdbool.h>
 
 // =============================
+// RF Hardware Pin Definitions
+// =============================
+
+// ADF4351 SPI control pins (400 MHz - 4.4 GHz PLL)
+#define ADF4351_CLK_PIN      LATCbits.LATC2    // SPI Clock (hardware SPI)
+#define ADF4351_DATA_PIN     LATCbits.LATC0    // SPI Data (hardware SPI)  
+#define ADF4351_LE_PIN       LATCbits.LATC3    // Latch Enable
+#define ADF4351_CE_PIN       LATCbits.LATC9    // Chip Enable
+#define ADF4351_RF_EN_PIN    LATCbits.LATC8    // RF Enable
+#define ADF4351_LD_PIN       PORTCbits.RC1     // Lock Detect (input)
+
+// Pin directions
+#define ADF4351_CLK_TRIS     TRISCbits.TRISC2
+#define ADF4351_DATA_TRIS    TRISCbits.TRISC0
+#define ADF4351_LE_TRIS      TRISCbits.TRISC3
+#define ADF4351_CE_TRIS      TRISCbits.TRISC9
+#define ADF4351_RF_EN_TRIS   TRISCbits.TRISC8
+#define ADF4351_LD_TRIS      TRISCbits.TRISC1
+
+// ADL5375 I/Q Modulator control pins (400 MHz - 6 GHz)
+#define ADL5375_ENABLE_PIN   LATBbits.LATB9   // Enable
+#define ADL5375_ENABLE_TRIS  TRISBbits.TRISB9
+
+// RA07M4047M Power Amplifier control pins (400-520 MHz, 100mW/5W)
+#define AMP_ENABLE_PIN       LATBbits.LATB10  // PA Enable  
+#define POWER_CTRL_PIN       LATBbits.LATB11  // Power Level Select
+#define AMP_ENABLE_TRIS      TRISBbits.TRISB10
+#define POWER_CTRL_TRIS      TRISBbits.TRISB11
+
+// =============================
 // RF Power Level Definitions
 // =============================
 #define RF_POWER_LOW  0     // 100mW mode for local tests

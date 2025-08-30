@@ -1,53 +1,26 @@
 // rf_interface.c - RF Modules Control for COSPAS-SARSAT Generator
 // ADF4351 (PLL) + ADL5375 (I/Q Modulator) + RA07M4047M (PA)
-// Hardware validated against datasheets DS70005399D, ADF4351, ADL5375
 
 #include "includes.h"
 #include "rf_interface.h"
 #include "system_debug.h"
 
-// =============================
-// RF Hardware Pin Definitions
-// =============================
-
-// ADF4351 SPI control pins (400 MHz - 4.4 GHz PLL)
-#define ADF4351_CLK_PIN      LATBbits.LATB1   // SPI Clock
-#define ADF4351_DATA_PIN     LATBbits.LATB2   // SPI Data  
-#define ADF4351_LE_PIN       LATBbits.LATB3   // Latch Enable
-#define ADF4351_CE_PIN       LATBbits.LATB4   // Chip Enable
-#define ADF4351_RF_EN_PIN    LATBbits.LATB5   // RF Enable
-
-// Pin directions
-#define ADF4351_CLK_TRIS     TRISBbits.TRISB1
-#define ADF4351_DATA_TRIS    TRISBbits.TRISB2
-#define ADF4351_LE_TRIS      TRISBbits.TRISB3
-#define ADF4351_CE_TRIS      TRISBbits.TRISB4
-#define ADF4351_RF_EN_TRIS   TRISBbits.TRISB5
-
-// ADL5375 I/Q Modulator control pins (400 MHz - 6 GHz)
-#define ADL5375_ENABLE_PIN   LATBbits.LATB6   // Enable
-#define ADL5375_ENABLE_TRIS  TRISBbits.TRISB6
-
-// RA07M4047M Power Amplifier control pins (400-520 MHz, 100mW/5W)
-#define AMP_ENABLE_PIN       LATBbits.LATB15  // PA Enable  
-#define POWER_CTRL_PIN       LATBbits.LATB11  // Power Level Select
-#define AMP_ENABLE_TRIS      TRISBbits.TRISB15
-#define POWER_CTRL_TRIS      TRISBbits.TRISB11
+// Build timestamp for this specific file
+const char rf_build_time[] = __TIME__;
 
 // =============================
 // ADF4351 Configuration Data
 // =============================
 
-// ADF4351 register values for 403 MHz output
-// Calculated for 25 MHz reference clock
-// RFOUT = (REFIN × (INT + FRAC/MOD)) / RF_DIV
+// ADF4351 register values for 403 MHz output with 25 MHz reference
+// INT = 128, FRAC = 96, MOD = 100 → 25 MHz × (128 + 96/100) = 3224 MHz / 8 = 403 MHz
 static const uint32_t adf4351_regs_403mhz[] = {
-    0x200000,    // R0: N=16, FRAC=0 (403MHz = 25MHz × 16.12)
-    0x8000001,   // R1: Phase=0, MOD=1 
-    0x4E42,      // R2: LDF=0, LDP=1, PD_POL=1, CP=2.5mA
-    0x4B3,       // R3: Clock divider, CSR
-    0x8C803C,    // R4: Output power=+5dBm, MTLD=0, VCO_PD=0, RF_DIV=1
-    0x580005     // R5: Reserved bits
+    0x00800060,    // R0: INT=128, FRAC=96
+    0x80006401,    // R1: MOD=100, Phase=0
+    0x1C004E42,    // R2: CP=2.5mA, CP Bleed=3.75µA, LDF=frac, LDP=10ns, PD=positive
+    0x000004B3,    // R3: Band Select=fast, ABP=6ns, charge cancel=off
+    0x8CB83C,      // R4: RF_DIV=8, RF Output Enable=1
+    0x580005       // R5
 };
 
 // =============================
@@ -57,65 +30,141 @@ static volatile uint8_t rf_amp_enabled = 0;              // RF amplifier state
 static volatile uint8_t rf_current_power_mode = RF_POWER_LOW;  // Current power mode
 
 // =============================
-// ADF4351 SPI Driver Functions
+// ADF4351 Hardware SPI Driver Functions
 // =============================
 
-static void adf4351_spi_write_byte(uint8_t data) {
-    for (int i = 7; i >= 0; i--) {
-        ADF4351_CLK_PIN = 0;
-        ADF4351_DATA_PIN = (data >> i) & 1;
-        __delay_us(1);      // Setup time
-        ADF4351_CLK_PIN = 1;
-        __delay_us(1);      // Clock high time
-    }
+static void adf4351_init_hardware_spi(void) {
+    // Configure pins as digital
+    ANSELB = 0x0000;
+    ANSELC = 0x0000;
+    ANSELD = 0x0000;
+    
+    // Pin configuration
+    TRISCbits.TRISC0 = 0;   // SDO output
+    TRISCbits.TRISC2 = 0;   // SCK output
+    TRISCbits.TRISC3 = 0;   // LE output
+    
+    // PPS Configuration
+    __builtin_write_RPCON(0x0000);
+    RPOR8bits.RP48R = 5;   // SDO1 on RC0
+    RPOR9bits.RP50R = 6;   // SCK1 on RC2
+    __builtin_write_RPCON(0x0800);
+    
+    // SPI Configuration
+    SPI1CON1L = 0x0020;     // MSTEN=1 only
+    SPI1CON1Lbits.CKE = 1;  // CPHA=0 for ADF4351
+    SPI1CON1Lbits.CKP = 0;  // CPOL=0
+    SPI1CON1H = 0x0000;
+    SPI1CON2L = 0x0007;     // 8-bit mode
+    SPI1BRGL = 1;           // 1MHz 
+    
+    // Enable SPI
+    SPI1CON1Lbits.SPIEN = 1;
 }
 
 static void adf4351_write_register(uint32_t reg_data) {
-    // Start SPI transmission
-    ADF4351_LE_PIN = 0;
-    __delay_us(1);
+    LATCbits.LATC3 = 0;  // LE low
+    __delay_us(2);
     
-    // Send 32 bits MSB first
-    adf4351_spi_write_byte((reg_data >> 24) & 0xFF);
-    adf4351_spi_write_byte((reg_data >> 16) & 0xFF);
-    adf4351_spi_write_byte((reg_data >> 8) & 0xFF);
-    adf4351_spi_write_byte(reg_data & 0xFF);
+    // Send 32 bits as 4 bytes (MSB first)
+    SPI1BUFL = (reg_data >> 24) & 0xFF;
+    while(!SPI1STATLbits.SPIRBF);
+    (void)SPI1BUFL;
     
-    // Latch data into ADF4351
-    ADF4351_LE_PIN = 1;
-    __delay_us(10);     // Latch pulse width
-    ADF4351_LE_PIN = 0;
+    SPI1BUFL = (reg_data >> 16) & 0xFF;
+    while(!SPI1STATLbits.SPIRBF);
+    (void)SPI1BUFL;
+    
+    SPI1BUFL = (reg_data >> 8) & 0xFF;
+    while(!SPI1STATLbits.SPIRBF);
+    (void)SPI1BUFL;
+    
+    SPI1BUFL = reg_data & 0xFF;
+    while(!SPI1STATLbits.SPIRBF);
+    (void)SPI1BUFL;
+    
+    LATCbits.LATC3 = 1;  // LE high to latch
+    __delay_us(20);
 }
 
 // =============================
 // Public RF Interface Functions
 // =============================
 
+// =============================
+// ADF4351 Lock Detection with Timeout
+// =============================
+
+#define ADF4351_LOCK_TIMEOUT_MS 1000    // Maximum time to wait for lock (1 second)
+#define ADF4351_LOCK_CHECK_INTERVAL_MS 10 // Check every 10ms
+#define ADF4351_LOCK_RETRY_COUNT 3      // Number of lock verification attempts
+
+static uint8_t adf4351_verify_lock_status(void) {
+    // Read Lock Detect pin multiple times to confirm stable lock
+    for (int i = 0; i < ADF4351_LOCK_RETRY_COUNT; i++) {
+        if (!ADF4351_LD_PIN) {
+            return 0; // Lock not detected
+        }
+        __delay_ms(2); // Short delay between readings
+    }
+    return 1; // Stable lock detected
+}
+
+static uint8_t adf4351_wait_for_lock(void) {
+    int timeout_ms = ADF4351_LOCK_TIMEOUT_MS;
+    
+    DEBUG_LOG_FLUSH("Waiting for PLL lock");
+    
+    while (timeout_ms > 0) {
+        if (adf4351_verify_lock_status()) {
+            DEBUG_LOG_FLUSH(" - LOCKED\r\n");
+            return 1; // Lock detected and verified
+        }
+        
+        __delay_ms(ADF4351_LOCK_CHECK_INTERVAL_MS);
+        timeout_ms -= ADF4351_LOCK_CHECK_INTERVAL_MS;
+        
+        // Visual feedback for waiting
+        if (timeout_ms % 100 == 0) {
+            DEBUG_LOG_FLUSH(".");
+        }
+    }
+    
+    DEBUG_LOG_FLUSH(" - TIMEOUT\r\n");
+    return 0; // Lock not detected within timeout
+}
+
 void rf_init_adf4351(void) {
-    // Configure SPI pins as outputs
-    ADF4351_CLK_TRIS = 0;
-    ADF4351_DATA_TRIS = 0;
-    ADF4351_LE_TRIS = 0;
+    DEBUG_LOG_FLUSH("ADF4351 INIT START\r\n");
+    
+    // Initialize hardware SPI
+    adf4351_init_hardware_spi();
+    
+    // Configure remaining ADF4351 pins
     ADF4351_CE_TRIS = 0;
     ADF4351_RF_EN_TRIS = 0;
+    ADF4351_LD_TRIS = 1;  // Lock Detect as input
     
     // Set initial pin states
-    ADF4351_CLK_PIN = 0;
-    ADF4351_DATA_PIN = 0;
-    ADF4351_LE_PIN = 0;
+    LATCbits.LATC3 = 1;     // LE high (inactive)
     ADF4351_CE_PIN = 1;     // Enable chip
     ADF4351_RF_EN_PIN = 0;  // RF output disabled initially
     
     __delay_ms(10);         // Power-up delay
     
-    // Program ADF4351 registers (R5 to R0 sequence)
-    for (int i = 5; i >= 0; i--) {
-        adf4351_write_register(adf4351_regs_403mhz[i] | i);
+    // Program ADF4351 registers (R5 to R0)
+    DEBUG_LOG_FLUSH("Programming ADF4351 registers...\r\n");
+    for(int i = 0; i < 6; i++) {
+        adf4351_write_register(adf4351_regs_403mhz[i]);
+        __delay_ms(2);
     }
     
-    __delay_ms(20);         // Wait for PLL lock
-    
-    DEBUG_LOG_FLUSH("ADF4351 initialized @ 403 MHz\r\n");
+    // Wait for PLL lock
+    if (adf4351_wait_for_lock()) {
+        DEBUG_LOG_FLUSH("ADF4351 initialized successfully at 403 MHz\r\n");
+    } else {
+        DEBUG_LOG_FLUSH("WARNING: ADF4351 lock timeout\r\n");
+    }
 }
 
 void rf_adf4351_enable_output(uint8_t state) {
@@ -123,12 +172,9 @@ void rf_adf4351_enable_output(uint8_t state) {
     DEBUG_LOG_FLUSH(state ? "ADF4351 RF output ON\r\n" : "ADF4351 RF output OFF\r\n");
 }
 
-<<<<<<< HEAD
 //============================
 // ADL5375 RF MOdule
 //============================
-=======
->>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
 void rf_init_adl5375(void) {
     // Configure ADL5375 enable pin
     ADL5375_ENABLE_TRIS = 0;    // Output
@@ -145,12 +191,9 @@ void rf_adl5375_enable(uint8_t state) {
     DEBUG_LOG_FLUSH(state ? "ADL5375 enabled\r\n" : "ADL5375 disabled\r\n");
 }
 
-<<<<<<< HEAD
 //============================
 // RA07M4047M RF Power Amplifier
 //============================
-=======
->>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
 void rf_init_power_amplifier(void) {
     static uint8_t initialized = 0;
     if (initialized) return;
@@ -234,14 +277,24 @@ void rf_control_amplifier_chain(uint8_t state) {
         DEBUG_LOG_FLUSH("RF Chain DISABLED\r\n");
     }
 }
-
+/*void rf_initialize_all_modules(void) {
+    DEBUG_LOG_FLUSH("RF INIT CALLED\r\n");
+}*/
 void rf_initialize_all_modules(void) {
     DEBUG_LOG_FLUSH("Initializing RF modules...\r\n");
     
     // Initialize modules in dependency order
+    DEBUG_LOG_FLUSH("About to call rf_init_adf4351...\r\n");
     rf_init_adf4351();           // PLL synthesizer @ 403 MHz
+    DEBUG_LOG_FLUSH("rf_init_adf4351 completed\r\n");
+    
+    DEBUG_LOG_FLUSH("About to call rf_init_adl5375...\r\n");
     rf_init_adl5375();           // I/Q modulator
+    DEBUG_LOG_FLUSH("rf_init_adl5375 completed\r\n");
+    
+    DEBUG_LOG_FLUSH("About to call rf_init_power_amplifier...\r\n");
     rf_init_power_amplifier();   // RA07M4047M PA (100mW/5W)
+    DEBUG_LOG_FLUSH("rf_init_power_amplifier completed\r\n");
     
     DEBUG_LOG_FLUSH("RF modules initialization complete\r\n");
 }
@@ -269,8 +322,4 @@ void rf_system_halt(const char* message) {
         DEBUG_LOG_FLUSH("\r\n");
         __delay_ms(1000);
     }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> bbbf4ea6376c32d04d173795899fc7ca2c70e198
