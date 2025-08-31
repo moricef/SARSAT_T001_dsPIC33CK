@@ -9,25 +9,25 @@
 const char rf_build_time[] = __TIME__;
 
 // =============================
+// Global RF State Variables
+// =============================
+static volatile uint8_t rf_amp_enabled = 0;              // RF amplifier state
+static volatile uint8_t rf_current_power_mode = RF_POWER_LOW;  // Current power mode
+
+// =============================
 // ADF4351 Configuration Data
 // =============================
 
 // ADF4351 register values for 403 MHz output with 25 MHz reference
 // INT = 128, FRAC = 96, MOD = 100 → 25 MHz × (128 + 96/100) = 3224 MHz / 8 = 403 MHz
-static const uint32_t adf4351_regs_403mhz[] = {
-    0x00800060,    // R0: INT=128, FRAC=96
-    0x80006401,    // R1: MOD=100, Phase=0
-    0x1C004E42,    // R2: CP=2.5mA, CP Bleed=3.75µA, LDF=frac, LDP=10ns, PD=positive
-    0x000004B3,    // R3: Band Select=fast, ABP=6ns, charge cancel=off
-    0x8CB83C,      // R4: RF_DIV=8, RF Output Enable=1
-    0x580005       // R5
+const uint32_t adf4351_regs_403mhz[] = {
+    0x00580005,  // R5
+    0x00BC802C,  // R4  
+    0x000004B3,  // R3
+    0x18004E42,  // R2
+    0x080080C9,  // R1
+    0x004000C0   // R0
 };
-
-// =============================
-// Global RF State Variables
-// =============================
-static volatile uint8_t rf_amp_enabled = 0;              // RF amplifier state
-static volatile uint8_t rf_current_power_mode = RF_POWER_LOW;  // Current power mode
 
 // =============================
 // ADF4351 Hardware SPI Driver Functions
@@ -43,6 +43,8 @@ static void adf4351_init_hardware_spi(void) {
     TRISCbits.TRISC0 = 0;   // SDO output
     TRISCbits.TRISC2 = 0;   // SCK output
     TRISCbits.TRISC3 = 0;   // LE output
+    TRISBbits.TRISB15 = 0;  // LED output
+    TRISBbits.TRISB14 = 0;  // Lock LED output
     
     // PPS Configuration
     __builtin_write_RPCON(0x0000);
@@ -56,13 +58,13 @@ static void adf4351_init_hardware_spi(void) {
     SPI1CON1Lbits.CKP = 0;  // CPOL=0
     SPI1CON1H = 0x0000;
     SPI1CON2L = 0x0007;     // 8-bit mode
-    SPI1BRGL = 1;           // 1MHz 
+    SPI1BRGL = 24;           // 1MHz 
     
     // Enable SPI
     SPI1CON1Lbits.SPIEN = 1;
 }
 
-static void adf4351_write_register(uint32_t reg_data) {
+void adf4351_write_register(uint32_t reg_data) {
     LATCbits.LATC3 = 0;  // LE low
     __delay_us(2);
     
@@ -88,10 +90,6 @@ static void adf4351_write_register(uint32_t reg_data) {
 }
 
 // =============================
-// Public RF Interface Functions
-// =============================
-
-// =============================
 // ADF4351 Lock Detection with Timeout
 // =============================
 
@@ -99,7 +97,7 @@ static void adf4351_write_register(uint32_t reg_data) {
 #define ADF4351_LOCK_CHECK_INTERVAL_MS 10 // Check every 10ms
 #define ADF4351_LOCK_RETRY_COUNT 3      // Number of lock verification attempts
 
-static uint8_t adf4351_verify_lock_status(void) {
+uint8_t adf4351_verify_lock_status(void) {
     // Read Lock Detect pin multiple times to confirm stable lock
     for (int i = 0; i < ADF4351_LOCK_RETRY_COUNT; i++) {
         if (!ADF4351_LD_PIN) {
@@ -144,11 +142,14 @@ void rf_init_adf4351(void) {
     ADF4351_CE_TRIS = 0;
     ADF4351_RF_EN_TRIS = 0;
     ADF4351_LD_TRIS = 1;  // Lock Detect as input
+    CNPDCbits.CNPDC1 = 1;  // Enable pull-down on RC1
+    ADF4351_LOCK_LED_TRIS = 0;  // Lock LED as output
     
     // Set initial pin states
     LATCbits.LATC3 = 1;     // LE high (inactive)
     ADF4351_CE_PIN = 1;     // Enable chip
     ADF4351_RF_EN_PIN = 0;  // RF output disabled initially
+    ADF4351_LOCK_LED_PIN = 0;  // Lock LED off initially
     
     __delay_ms(10);         // Power-up delay
     
@@ -159,12 +160,37 @@ void rf_init_adf4351(void) {
         __delay_ms(2);
     }
     
-    // Wait for PLL lock
-    if (adf4351_wait_for_lock()) {
-        DEBUG_LOG_FLUSH("ADF4351 initialized successfully at 403 MHz\r\n");
-    } else {
-        DEBUG_LOG_FLUSH("WARNING: ADF4351 lock timeout\r\n");
+    // Wait for PLL lock with retry mechanism
+    uint8_t lock_attempts = 0;
+    const uint8_t max_attempts = 3;
+    
+    while (lock_attempts < max_attempts) {
+        lock_attempts++;
+        DEBUG_LOG_FLUSH("PLL lock attempt ");
+        debug_print_uint16(lock_attempts);
+        DEBUG_LOG_FLUSH("/");
+        debug_print_uint16(max_attempts);
+        DEBUG_LOG_FLUSH("\r\n");
+        
+        if (adf4351_wait_for_lock()) {
+            DEBUG_LOG_FLUSH("ADF4351 initialized successfully at 403 MHz\r\n");
+            return; // Success - exit function
+        } else {
+            DEBUG_LOG_FLUSH("PLL lock attempt failed\r\n");
+            if (lock_attempts < max_attempts) {
+                DEBUG_LOG_FLUSH("Reprogramming registers...\r\n");
+                // Reprogram all registers
+                for(int i = 0; i < 6; i++) {
+                    adf4351_write_register(adf4351_regs_403mhz[i]);
+                    __delay_ms(2);
+                }
+                __delay_ms(50); // Extra settling time
+            }
+        }
     }
+    
+    // System halt if all attempts failed - NO RETURN
+    rf_system_halt("ADF4351 PLL LOCK FAILED AFTER 3 ATTEMPTS");
 }
 
 void rf_adf4351_enable_output(uint8_t state) {
@@ -277,10 +303,8 @@ void rf_control_amplifier_chain(uint8_t state) {
         DEBUG_LOG_FLUSH("RF Chain DISABLED\r\n");
     }
 }
-/*void rf_initialize_all_modules(void) {
-    DEBUG_LOG_FLUSH("RF INIT CALLED\r\n");
-}*/
 void rf_initialize_all_modules(void) {
+    DEBUG_LOG_FLUSH("*** RF INIT START ***\r\n");
     DEBUG_LOG_FLUSH("Initializing RF modules...\r\n");
     
     // Initialize modules in dependency order
@@ -315,11 +339,59 @@ void rf_system_halt(const char* message) {
     // Disable all RF outputs for safety
     rf_control_amplifier_chain(0);
     
-    // Enter infinite loop with error message
+    // Enter infinite loop with SOS error signal
     while(1) {
-        DEBUG_LOG_FLUSH("RF ERROR: ");
+        // Check for reset button press (RD13 low = button pressed)
+        if (!PORTDbits.RD13) {
+            __delay_ms(50);  // Debounce
+            if (!PORTDbits.RD13) {
+                DEBUG_LOG_FLUSH("RESET BUTTON PRESSED - RESTARTING\r\n");
+                __delay_ms(100);
+                asm("reset");  // Software reset
+            }
+        }
+        
+        // Check for spontaneous PLL recovery (escape route from critical error)
+        if (ADF4351_LD_PIN) {
+            DEBUG_LOG_FLUSH("SPONTANEOUS PLL RECOVERY DETECTED - EXITING CRITICAL MODE\r\n");
+            ADF4351_LOCK_LED_PIN = 1;  // Turn on lock LED
+            return;  // Exit rf_system_halt and return to main loop
+        }
+        
+        DEBUG_LOG_FLUSH("CRITICAL ERROR: ");
         DEBUG_LOG_FLUSH(message);
         DEBUG_LOG_FLUSH("\r\n");
-        __delay_ms(1000);
+        
+        // SOS pattern on RD10: ...---...
+        // S (3 dots)
+        for(int i = 0; i < 3; i++) {
+            LATDbits.LATD10 = 1; __delay_ms(200);  // DIT
+            LATDbits.LATD10 = 0; __delay_ms(200);  // Space
+            // Check reset button and PLL recovery during SOS
+            if (!PORTDbits.RD13 || ADF4351_LD_PIN) break;
+        }
+        if (!PORTDbits.RD13 || ADF4351_LD_PIN) continue;  // Restart loop for reset/PLL check
+        __delay_ms(400);  // Letter space (600ms total)
+        
+        // O (3 dashes)  
+        for(int i = 0; i < 3; i++) {
+            LATDbits.LATD10 = 1; __delay_ms(600);  // DAH
+            LATDbits.LATD10 = 0; __delay_ms(200);  // Space
+            // Check reset button and PLL recovery during SOS
+            if (!PORTDbits.RD13 || ADF4351_LD_PIN) break;
+        }
+        if (!PORTDbits.RD13 || ADF4351_LD_PIN) continue;  // Restart loop for reset/PLL check
+        __delay_ms(400);  // Letter space
+        
+        // S (3 dots)
+        for(int i = 0; i < 3; i++) {
+            LATDbits.LATD10 = 1; __delay_ms(200);  // DIT
+            LATDbits.LATD10 = 0; __delay_ms(200);  // Space
+            // Check reset button and PLL recovery during SOS
+            if (!PORTDbits.RD13 || ADF4351_LD_PIN) break;
+        }
+        if (!PORTDbits.RD13 || ADF4351_LD_PIN) continue;  // Restart loop for reset/PLL check
+        
+        __delay_ms(1400);  // Word space (7 units total)
     }
 }

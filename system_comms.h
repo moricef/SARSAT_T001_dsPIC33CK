@@ -36,10 +36,6 @@
 // =============================
 // Hardware Configuration
 // =============================
-#define AMP_ENABLE_PIN          LATBbits.LATB15  // RF amplifier enable
-#define POWER_CTRL_PIN          LATBbits.LATB11  // Power level control
-#define POWER_LOW               0                // Low power mode
-#define POWER_HIGH              1                // High power mode
 #define LED_TX_PIN              LATDbits.LATD10  // Transmission indicator LED
 
 // DAC Configuration  

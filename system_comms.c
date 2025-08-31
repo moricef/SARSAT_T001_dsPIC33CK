@@ -28,10 +28,6 @@ volatile uint16_t current_ramp_count = 0;          // Current position in ramp
 volatile uint16_t modulation_counter = 0;           // Modulation sample counter
 volatile uint16_t sample_count = 0;                 // General purpose sample counter
 
-// RF control variables
-volatile uint8_t amp_enabled = 0;                  // RF amplifier state (0=off)
-volatile uint8_t current_power_mode = POWER_LOW;    // Current power mode
-
 // I/Q Modulation for ADL5375 with single DAC (dsPIC33CK64MC105)
 // RF modules managed by rf_interface.c
 
@@ -56,23 +52,37 @@ void init_clock(void) {
     __builtin_write_OSCCONL(OSCCON | 0x01);
     while(OSCCONbits.OSWEN);  // Wait for clock switch completion
     
-    // Configure PLL for 100 MHz operation (FCY = 100 MHz)
-    // FRC = 8 MHz, Target FCY = 100 MHz → FOSC = 200 MHz
-    // FOSC = FIN × M / (N1 × N2 × N3) = 8 × 200 / (2 × 4 × 1) = 200 MHz
-    CLKDIVbits.PLLPRE = 1;     // N1 = 2 (Pre-diviseur)
-    PLLFBD = 125;              // M = 200 (Multiplicateur, register = M-1)
-    PLLDIVbits.POST1DIV = 5;   // N2 = 4 (Post-diviseur 1)
-    PLLDIVbits.POST2DIV = 1;   // N3 = 1 (Post-diviseur 2)
+    // Configure PLL for 100 MHz operation (FCY = 100 MHz) - Based on Example 9-2
+    // FRC = 8 MHz, Target FCY = 100 MHz → FOSC = 200 MHz  
+    // FOSC = FIN × M / (N1 × N2 × N3) = 8 × 200 / (1 × 5 × 1) = 1600 MHz VCO, 200 MHz FOSC
+    CLKDIVbits.PLLPRE = 1;     // N1 = 2 (Input divider)
+    PLLFBD = 125;              // M = 126 (Feedback divider, register = M-1)
+    PLLDIVbits.POST1DIV = 5;   // N2 = 6 (Post divider 1, register = N-1)
+    PLLDIVbits.POST2DIV = 1;   // N3 = 2 (Post divider 2, register = N-1)
 
-    // Activate FRCPLL
+    // Activate FRCPLL (NOSC=0b001)
     __builtin_write_OSCCONH(0x01);
     __builtin_write_OSCCONL(OSCCON | 0x01);
     
-    // Wait for PLL lock
-    while(OSCCONbits.OSWEN);
-    while(!OSCCONbits.LOCK);
+    // Wait for Clock switch to occur
+    while(OSCCONbits.OSWEN != 0);
     
-    // Handle PLL lock failure
+    // Debug: Check current oscillator source
+    DEBUG_LOG_FLUSH("COSC=");
+    debug_print_hex(OSCCONbits.COSC);
+    DEBUG_LOG_FLUSH(" NOSC=");
+    debug_print_hex(OSCCONbits.NOSC);
+    DEBUG_LOG_FLUSH("\r\n");
+    
+    // Wait for PLL to lock
+    while(OSCCONbits.LOCK != 1);
+    
+    // Debug: Confirm PLL lock
+    DEBUG_LOG_FLUSH("PLL LOCK=");
+    debug_print_hex(OSCCONbits.LOCK);
+    DEBUG_LOG_FLUSH("\r\n");
+    
+    // Handle PLL lock failure  
     if(!OSCCONbits.LOCK) {
         system_halt("PLL lock failed");
     }
@@ -92,8 +102,8 @@ void init_gpio(void) {
     LATAbits.LATA3 = 0;       // Initial low state
     
     // RF control pins
-    TRISBbits.TRISB15 = 0;    // Amplifier enable (output)
-    LATBbits.LATB15 = 0;      // Initially disabled
+    TRISBbits.TRISB10 = 0;    // Amplifier enable (output)
+    LATBbits.LATB10 = 0;      // Initially disabled
     TRISBbits.TRISB11 = 0;    // Power level select (output)
     LATBbits.LATB11 = 0;      // Initial low power mode
     
@@ -102,11 +112,16 @@ void init_gpio(void) {
     TRISDbits.TRISD10 = 0;    // Output
     LATDbits.LATD10 = 0;      // Initially off
     
+    // Reset button (RD13)
+    ANSELDbits.ANSELD13 = 0;  // Digital mode  
+    TRISDbits.TRISD13 = 1;    // Input
+    CNPUDbits.CNPUD13 = 1;    // Enable pull-up
+    
     // Configuration switches
-    TRISBbits.TRISB12 = 1;    // Frame type select (input)
-    CNPDBbits.CNPDB12 = 1;    // Enable pull-down
-    TRISBbits.TRISB13 = 1;    // Frequency select (input)
-    CNPDBbits.CNPDB13 = 1;    // Enable pull-down
+    TRISBbits.TRISB2 = 1;    // Frame type select (input)
+    CNPDBbits.CNPDB2 = 1;    // Enable pull-down
+    TRISBbits.TRISB1 = 1;    // Frequency select (input)
+    CNPDBbits.CNPDB1 = 1;    // Enable pull-down
     
     // DAC output configuration
     ANSELAbits.ANSELA3 = 1;   // Analog mode
@@ -152,7 +167,7 @@ void init_timer1(void) {
     TMR1 = 0;         // Reset timer counter
     
     // Calculate period for 6400 Hz sample rate
-    PR1 = (FCY / ACTUAL_SAMPLE_RATE_HZ) - 1;  // 100MHz/6.4kHz-1 = 15624
+    PR1 = (FCY / ACTUAL_SAMPLE_RATE_HZ) - 1;
     
     // Timer configuration
     T1CONbits.TCKPS = 0;    // No prescaler (1:1)
@@ -449,9 +464,6 @@ void start_transmission(volatile const uint8_t* data) {
     tx_phase = PRE_AMPLI_RAMP_UP;  // Start transmission sequence
 }
 
-// RF functions moved to rf_interface.c
-//============================
-//
 //============================
 void set_tx_interval(uint32_t interval_ms) {
     __builtin_disable_interrupts();

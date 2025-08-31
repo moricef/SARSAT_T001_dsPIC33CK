@@ -11,14 +11,14 @@ extern volatile uint32_t millis_counter;
 extern volatile tx_phase_t tx_phase;
 extern volatile uint8_t beacon_frame[];
 
-// D�claration de la fonction start_beacon_frame
+// Declaration de la fonction start_beacon_frame
 void start_beacon_frame(beacon_frame_type_t frame_type);
 
 // Lecture du switch de sélection mode
 beacon_frame_type_t get_frame_type_from_switch(void) {
-    // RB12 = 0 (pull-down) → TEST mode
-    // RB12 = 1 (switch pressed) → EXERCISE mode
-    return PORTBbits.RB12 ? BEACON_EXERCISE_FRAME : BEACON_TEST_FRAME;
+    // RB2 = 0 (pull-down) → TEST mode
+    // RB2 = 1 (switch pressed) → EXERCISE mode
+    return PORTBbits.RB2 ? BEACON_EXERCISE_FRAME : BEACON_TEST_FRAME;
 }
 
 uint8_t should_transmit_beacon(void) {
@@ -39,11 +39,37 @@ uint8_t should_transmit_beacon(void) {
 int main(void) {
 	__builtin_disable_interrupts();
     system_init();
-    set_tx_interval(5000);  // Initial interval (will be adjusted by frame type)
+    //set_tx_interval(5000);  // Initial interval (will be adjusted by frame type)
     __builtin_enable_interrupts();
     
+    // Delai pour lancer picocom
+    __delay_ms(10000);
+    
+    // Generate HHMMSS timestamp from rf_interface.c compilation time
+    extern const char rf_build_time[];  // Defined in rf_interface.c
+    DEBUG_LOG_FLUSH("=== SESSION ");
+    // Extract HHMMSS: positions 0,1,3,4,6,7 from "HH:MM:SS"
+    debug_print_char(rf_build_time[0]);  // H
+    debug_print_char(rf_build_time[1]);  // H  
+    debug_print_char(rf_build_time[3]);  // M
+    debug_print_char(rf_build_time[4]);  // M
+    debug_print_char(rf_build_time[6]);  // S
+    debug_print_char(rf_build_time[7]);  // S
+    DEBUG_LOG_FLUSH(" ===\r\n");
     DEBUG_LOG_FLUSH("System initialized\r\n");
+    DEBUG_LOG_FLUSH("About to initialize RF modules\r\n");
 
+    // Initialize RF modules
+    rf_initialize_all_modules();
+    DEBUG_LOG_FLUSH("RF modules init completed\r\n");
+    DEBUG_LOG_FLUSH("=== SESSION ");
+    debug_print_char(rf_build_time[0]);
+    debug_print_char(rf_build_time[1]);
+    debug_print_char(rf_build_time[3]);
+    debug_print_char(rf_build_time[4]);
+    debug_print_char(rf_build_time[6]);
+    debug_print_char(rf_build_time[7]);
+    DEBUG_LOG_FLUSH(" INIT COMPLETE ===\r\n");
     rf_set_power_level(RF_POWER_LOW);
     
     beacon_frame_type_t frame_type = get_frame_type_from_switch();
@@ -81,6 +107,45 @@ int main(void) {
             DEBUG_LOG_FLUSH("Status: phase=");
             debug_print_uint16(tx_phase);
             DEBUG_LOG_FLUSH("\r\n");
+        }
+        
+        // Periodic PLL lock verification with retry (every 5 seconds)
+        static uint32_t last_pll_check = 0;
+        static uint8_t pll_was_locked = 1;  // Assume locked after init
+        
+        if((current_time - last_pll_check) >= 5000) {
+            last_pll_check = current_time;
+            
+            if (ADF4351_LD_PIN) {
+                ADF4351_LOCK_LED_PIN = 1;  // PLL locked - LED on
+                pll_was_locked = 1;
+            } else {
+                ADF4351_LOCK_LED_PIN = 0;  // PLL unlocked - LED off
+                
+                // PLL unlock detected during normal operation
+                if (pll_was_locked) {
+                    DEBUG_LOG_FLUSH("WARNING: PLL unlock detected during operation\r\n");
+                    DEBUG_LOG_FLUSH("Attempting automatic PLL recovery...\r\n");
+                    
+                    // Attempt recovery (reprogram registers)
+                    for(int i = 0; i < 6; i++) {
+                        adf4351_write_register(adf4351_regs_403mhz[i]);
+                        __delay_ms(2);
+                    }
+                    __delay_ms(50);  // Extra settling time
+                    
+                    // Check if recovery successful
+                    if (ADF4351_LD_PIN) {
+                        DEBUG_LOG_FLUSH("PLL recovery successful\r\n");
+                        ADF4351_LOCK_LED_PIN = 1;
+                        pll_was_locked = 1;
+                    } else {
+                        DEBUG_LOG_FLUSH("PLL recovery failed - entering critical mode\r\n");
+                        rf_system_halt("PLL UNLOCK DURING OPERATION - RECOVERY FAILED");
+                    }
+                }
+                pll_was_locked = 0;
+            }
         }
         
         __delay_ms(10);

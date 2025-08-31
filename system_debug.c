@@ -59,7 +59,6 @@ void isr_log_transfer_direct(void) {
 // Fonctions de gestion du buffer debug
 // =============================
 void debug_push_char(char c) {
-    // Version ultra-simplifiee
     while(U2STAHbits.UTXBF);  // Attendre buffer libre
     U2TXREG = c;
 }
@@ -382,9 +381,9 @@ void process_uart_commands(void) {
                 debug_flags.log_mode = LOG_MODE_ISR;
                 DEBUG_LOG_FLUSH("Debug mode: ISR\r\n");
             }
-            else if (strcmp(cmd_buffer, "LOG OFF") == 0) {
+            else if (strcmp(cmd_buffer, "LOG NONE") == 0) {
                 debug_flags.log_mode = LOG_MODE_NONE;
-                DEBUG_LOG_FLUSH("Debug mode: OFF\r\n");
+                DEBUG_LOG_FLUSH("Debug mode: NONE\r\n");
             }
             else {
                 DEBUG_LOG_FLUSH("Unknown command: ");

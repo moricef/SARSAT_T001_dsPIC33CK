@@ -15,6 +15,8 @@
 #define ADF4351_CE_PIN       LATCbits.LATC9    // Chip Enable
 #define ADF4351_RF_EN_PIN    LATCbits.LATC8    // RF Enable
 #define ADF4351_LD_PIN       PORTCbits.RC1     // Lock Detect (input)
+#define ADF4351_LOCK_LED_PIN LATBbits.LATB15   // ADF4351 lock LED
+#define PA_LED_PIN           LATBbits.LATB13   // RA07M4047M PA LED
 
 // Pin directions
 #define ADF4351_CLK_TRIS     TRISCbits.TRISC2
@@ -23,6 +25,8 @@
 #define ADF4351_CE_TRIS      TRISCbits.TRISC9
 #define ADF4351_RF_EN_TRIS   TRISCbits.TRISC8
 #define ADF4351_LD_TRIS      TRISCbits.TRISC1
+#define ADF4351_LOCK_LED_TRIS TRISBbits.TRISB15
+#define PA_LED_TRIS          TRISBbits.TRISB13
 
 // ADL5375 I/Q Modulator control pins (400 MHz - 6 GHz)
 #define ADL5375_ENABLE_PIN   LATBbits.LATB9   // Enable
@@ -45,6 +49,9 @@
 // =============================
 void rf_init_adf4351(void);                    // Initialize ADF4351 @ 403 MHz
 void rf_adf4351_enable_output(uint8_t state);  // Enable/disable RF output
+uint8_t adf4351_verify_lock_status(void);      // Verify PLL lock with multiple readings
+void adf4351_write_register(uint32_t reg_data); // Write 32-bit register to ADF4351
+extern const uint32_t adf4351_regs_403mhz[6];   // ADF4351 register values for 403MHz
 
 // =============================
 // ADL5375 I/Q Modulator Functions

@@ -29,17 +29,8 @@
 #define SAMPLES_PER_HALF_BIT (SAMPLES_PER_SYMBOL / 2)
 
 // =============================
-// Power Control Definitions
-// =============================
-#define POWER_LOW  0
-#define POWER_HIGH 1
-
-// =============================
 // Hardware Pin Definitions
 // =============================
-#define AMP_ENABLE_PIN       LATBbits.LATB15
-#define POWER_CTRL_PIN       LATBbits.LATB11
-//#define LED_TX_PIN           LATBbits.LATB14
 #define LED_TX_PIN           LATDbits.LATD10
 
 // =============================
