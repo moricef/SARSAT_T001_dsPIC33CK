@@ -22,11 +22,11 @@ static volatile uint8_t rf_current_power_mode = RF_POWER_LOW;  // Current power 
 // INT = 128, FRAC = 96, MOD = 100 → 25 MHz × (128 + 96/100) = 3224 MHz / 8 = 403 MHz
 const uint32_t adf4351_regs_403mhz[] = {
     0x00580005,  // R5
-    0x00BC802C,  // R4  
+    0x00BC803C,  // R4  
     0x000004B3,  // R3
     0x18004E42,  // R2
-    0x080080C9,  // R1
-    0x004000C0   // R0
+    0x080087D1,  // R1
+    0x00400798   // R0
 };
 
 // =============================
@@ -173,7 +173,7 @@ void rf_init_adf4351(void) {
         DEBUG_LOG_FLUSH("\r\n");
         
         if (adf4351_wait_for_lock()) {
-            DEBUG_LOG_FLUSH("ADF4351 initialized successfully at 403 MHz\r\n");
+            DEBUG_LOG_FLUSH("ADF4351 initialized successfully at 403.040 MHz\r\n");
             return; // Success - exit function
         } else {
             DEBUG_LOG_FLUSH("PLL lock attempt failed\r\n");
@@ -207,6 +207,23 @@ void rf_init_adl5375(void) {
     ADL5375_ENABLE_PIN = 0;     // Initially disabled
     
     DEBUG_LOG_FLUSH("ADL5375 I/Q modulator initialized\r\n");
+}
+
+// =============================
+// ADF4351 Chip Enable Control (RC9)
+// =============================
+
+void rf_adf4351_enable_chip(uint8_t state) {
+    ADF4351_CE_PIN = state ? 1 : 0;
+    DEBUG_LOG_FLUSH(state ? "ADF4351 chip ENABLED\r\n" : "ADF4351 chip DISABLED\r\n");
+    
+    if (state) {
+        __delay_ms(10); // Stabilization time after activation
+    }
+}
+
+uint8_t rf_adf4351_wait_for_lock_with_timeout(void) {
+    return adf4351_wait_for_lock();
 }
 
 void rf_adl5375_enable(uint8_t state) {
@@ -268,7 +285,16 @@ void rf_control_amplifier_chain(uint8_t state) {
     if (state) {
         // RF chain power-up sequence (proper order for stability)
         
-        // 1. Enable ADF4351 LO output first
+        // 0. Enable ADF4351 chip first (RC9)
+        rf_adf4351_enable_chip(1);
+        __delay_ms(5); // Short delay after CE activation
+        
+        // 1. Wait for PLL lock before continuing
+        if (!rf_adf4351_wait_for_lock_with_timeout()) {
+            DEBUG_LOG_FLUSH("WARNING: PLL not locked, continuing anyway\r\n");
+        }
+                
+        // 1. Enable ADF4351 LO output
         rf_adf4351_enable_output(1);
         __delay_ms(10);             // Wait for LO frequency stability
         
@@ -299,10 +325,39 @@ void rf_control_amplifier_chain(uint8_t state) {
         // 3. Disable LO output (keep PLL running, just RF off)
         rf_adf4351_enable_output(0);
         
+        // 4. Disable ADF4351 chip (RC9) - POWER SAVING
+        rf_adf4351_enable_chip(0);
+        
         rf_amp_enabled = 0;
         DEBUG_LOG_FLUSH("RF Chain DISABLED\r\n");
     }
 }
+
+// =============================
+// Controlled Transmission Functions
+// =============================
+
+void rf_start_transmission(void) {
+    DEBUG_LOG_FLUSH("Starting transmission sequence...\r\n");
+    
+    // Enable complete RF chain
+    rf_control_amplifier_chain(1);
+    
+    // Add delay for complete stabilization
+    __delay_ms(2);
+    
+    DEBUG_LOG_FLUSH("RF carrier ON - ready for modulation\r\n");
+}
+
+void rf_stop_transmission(void) {
+    DEBUG_LOG_FLUSH("Stopping transmission sequence...\r\n");
+    
+    // Disable complete RF chain
+    rf_control_amplifier_chain(0);
+    
+    DEBUG_LOG_FLUSH("RF carrier OFF\r\n");
+}
+
 void rf_initialize_all_modules(void) {
     DEBUG_LOG_FLUSH("*** RF INIT START ***\r\n");
     DEBUG_LOG_FLUSH("Initializing RF modules...\r\n");
@@ -338,6 +393,7 @@ uint8_t rf_get_power_mode(void) {
 void rf_system_halt(const char* message) {
     // Disable all RF outputs for safety
     rf_control_amplifier_chain(0);
+    rf_adf4351_enable_chip(0); // Ensure CE is disabled
     
     // Enter infinite loop with SOS error signal
     while(1) {
@@ -362,36 +418,8 @@ void rf_system_halt(const char* message) {
         DEBUG_LOG_FLUSH(message);
         DEBUG_LOG_FLUSH("\r\n");
         
-        // SOS pattern on RD10: ...---...
-        // S (3 dots)
-        for(int i = 0; i < 3; i++) {
-            LATDbits.LATD10 = 1; __delay_ms(200);  // DIT
-            LATDbits.LATD10 = 0; __delay_ms(200);  // Space
-            // Check reset button and PLL recovery during SOS
-            if (!PORTDbits.RD13 || ADF4351_LD_PIN) break;
-        }
-        if (!PORTDbits.RD13 || ADF4351_LD_PIN) continue;  // Restart loop for reset/PLL check
-        __delay_ms(400);  // Letter space (600ms total)
-        
-        // O (3 dashes)  
-        for(int i = 0; i < 3; i++) {
-            LATDbits.LATD10 = 1; __delay_ms(600);  // DAH
-            LATDbits.LATD10 = 0; __delay_ms(200);  // Space
-            // Check reset button and PLL recovery during SOS
-            if (!PORTDbits.RD13 || ADF4351_LD_PIN) break;
-        }
-        if (!PORTDbits.RD13 || ADF4351_LD_PIN) continue;  // Restart loop for reset/PLL check
-        __delay_ms(400);  // Letter space
-        
-        // S (3 dots)
-        for(int i = 0; i < 3; i++) {
-            LATDbits.LATD10 = 1; __delay_ms(200);  // DIT
-            LATDbits.LATD10 = 0; __delay_ms(200);  // Space
-            // Check reset button and PLL recovery during SOS
-            if (!PORTDbits.RD13 || ADF4351_LD_PIN) break;
-        }
-        if (!PORTDbits.RD13 || ADF4351_LD_PIN) continue;  // Restart loop for reset/PLL check
-        
-        __delay_ms(1400);  // Word space (7 units total)
+        LATDbits.LATD10 = !LATDbits.LATD10;
+        __delay_ms(150);
+        if (!PORTDbits.RD13 || ADF4351_LD_PIN) continue;
     }
 }

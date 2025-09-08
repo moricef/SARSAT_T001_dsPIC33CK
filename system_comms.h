@@ -46,9 +46,12 @@
 // ADL5375-05 Interface Configuration
 #define ADL5375_BIAS_MV         500              // 500mV bias level for ADL5375-05
 #define ADL5375_SWING_MV        500              // 500mV p-p per pin (1V p-p differential)
+//#define ADL5375_SWING_MV        550              // Ancienne valeur: 500 (500 * 1.10 ≈ 550)
 #define ADL5375_MIN_VOLTAGE     0.0f             // Minimum voltage (bias - swing/2)
 #define ADL5375_MAX_VOLTAGE     1.0f             // Maximum voltage (bias + swing/2)
 #define VOLTAGE_REF_3V3         3.3f             // dsPIC33CK supply voltage
+
+#define CARRIER_STABILIZATION_MS   5
 
 // =============================
 // Transmission States

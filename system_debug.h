@@ -5,6 +5,8 @@
 #include "system_definitions.h"
 #include "system_comms.h"
 
+extern volatile uint32_t millis_counter;
+
 // =============================
 // Configuration materielle
 // =============================
@@ -15,7 +17,7 @@
 // Tampons debogages
 #define DEBUG_BUF_SIZE     256
 #define UART_BUFFER_SIZE   128
-#define ISR_LOG_BUF_SIZE 2048  // Taille spécifique pour les logs ISR
+#define ISR_LOG_BUF_SIZE 2048  // Taille spï¿½cifique pour les logs ISR
 
 // =============================
 // Macros pour les logs
@@ -46,7 +48,7 @@
 // Structure debug_flags_t
 // =============================
 
-// Définition des modes de log
+// Definition des modes de log
 typedef enum {
     LOG_MODE_NONE = 0,
     LOG_MODE_ISR,

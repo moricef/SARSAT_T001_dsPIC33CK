@@ -14,6 +14,10 @@ extern volatile uint8_t beacon_frame[];
 // Declaration de la fonction start_beacon_frame
 void start_beacon_frame(beacon_frame_type_t frame_type);
 
+// Declarations for new RF control functions
+extern void rf_start_transmission(void);
+extern void rf_stop_transmission(void);
+
 // Lecture du switch de sélection mode
 beacon_frame_type_t get_frame_type_from_switch(void) {
     // RB2 = 0 (pull-down) → TEST mode

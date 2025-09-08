@@ -1,6 +1,8 @@
 #ifndef SYSTEM_DEFINITIONS_H
 #define SYSTEM_DEFINITIONS_H
 
+#include <stdint.h>
+
 // =============================
 // System Configuration Constants
 // =============================

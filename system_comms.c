@@ -5,6 +5,13 @@
 #include "system_debug.h"
 #include "protocol_data.h"
 #include "rf_interface.h"
+#include "signal_processor.h"
+
+// Declarations for new RF control functions
+extern void rf_start_transmission(void);
+extern void rf_stop_transmission(void);
+void transmission_complete_callback(void);
+void dac_cleanup(void);
 
 // =============================
 // Global Variables
@@ -34,6 +41,9 @@ volatile uint16_t sample_count = 0;                 // General purpose sample co
 // BPSK modulation values for Q channel (sin component)
 const uint16_t q_channel_plus_1_1_rad = 2048 + 1823;   // +1.1 rad: sin(1.1) * 2047 ≈ 1823
 const uint16_t q_channel_minus_1_1_rad = 2048 - 1823;  // -1.1 rad: sin(-1.1) * 2047 ≈ -1823
+// Augmentation de 10% : 1823 × 1.10 ≈ 2005
+//const uint16_t q_channel_plus_1_1_rad = 2048 + 2005;
+//const uint16_t q_channel_minus_1_1_rad = 2048 - 2005;
 const uint16_t i_channel_constant = 2048;              // Constant level for reference
 
 void system_halt(const char* message) {
@@ -54,11 +64,11 @@ void init_clock(void) {
     
     // Configure PLL for 100 MHz operation (FCY = 100 MHz) - Based on Example 9-2
     // FRC = 8 MHz, Target FCY = 100 MHz → FOSC = 200 MHz  
-    // FOSC = FIN × M / (N1 × N2 × N3) = 8 × 200 / (1 × 5 × 1) = 1600 MHz VCO, 200 MHz FOSC
-    CLKDIVbits.PLLPRE = 1;     // N1 = 2 (Input divider)
-    PLLFBD = 125;              // M = 126 (Feedback divider, register = M-1)
-    PLLDIVbits.POST1DIV = 5;   // N2 = 6 (Post divider 1, register = N-1)
-    PLLDIVbits.POST2DIV = 1;   // N3 = 2 (Post divider 2, register = N-1)
+    // FOSC = FIN × M / (N1 × N2 × N3) = 8 × 125 / (1 × 5 × 1) = 200 MHz FOSC
+    CLKDIVbits.PLLPRE = 1;     // N1 = 1 (Input divider)
+    PLLFBD = 125;              // M = 125 (Feedback divider)
+    PLLDIVbits.POST1DIV = 5;   // N2 = 5 (Post divider 1)
+    PLLDIVbits.POST2DIV = 1;   // N3 = 1 (Post divider 2)
 
     // Activate FRCPLL (NOSC=0b001)
     __builtin_write_OSCCONH(0x01);
@@ -138,8 +148,12 @@ void init_gpio(void) {
 // =============================
 void init_dac(void) {
     // Configure DAC control registers
-    DAC1CONH = 0x0;
-    DAC1CONL = 0x8200; 
+    DAC1CONH = 0x0000;  // Clear high register
+    
+    // Configure low register with FILTER ENABLED
+    DAC1CONL = 0x8700;  // Valeur de base
+    DAC1CONLbits.FLTREN = 1;  // ACTIVATION FILTRE NUMÉRIQUE
+    
     
     // Timing configuration
     DACCTRL1L = 0x0040;      
@@ -150,13 +164,13 @@ void init_dac(void) {
     DAC1CONLbits.DACEN = 1;   
     DAC1CONLbits.DACOEN = 1;  
     
-    // Initial value (1.65V midpoint)
-    DAC1DATH = DAC_OFFSET;
+    // Initial value (0.5V ADL5375 bias)
+    DAC1DATH = (uint16_t)((0.5f * (float)DAC_RESOLUTION) / VOLTAGE_REF_3V3);
     
     // Final activation
     DACCTRL1Lbits.DACON = 1;  
     
-    DEBUG_LOG_FLUSH("DAC initialized\r\n");
+    DEBUG_LOG_FLUSH("DAC initialized with digital filter (FLTREN=1)\r\n");
 }
 
 // =============================
@@ -184,35 +198,55 @@ void init_timer1(void) {
     DEBUG_LOG_FLUSH("Hz (expected 6400Hz)\r\n");
 }
 
+
+// =============================
+// Transmission Complete Callback
+// =============================
+void transmission_complete_callback(void) {
+    // 1. FIRST: Clean up DAC progressively  
+    dac_cleanup();
+    
+    // 2. THEN: Allow DAC to stabilize
+    __delay_ms(2);
+    
+    // 3. FINALLY: Disable RF chain
+    rf_stop_transmission();
+    DEBUG_LOG_FLUSH("RF transmission complete - carrier disabled\r\n");
+}
+
+// =============================
+// DAC Cleanup Function
+// =============================
+void dac_cleanup(void) {
+    // Transition progressive vers 0.5V ADL5375 bias sur 2ms
+    uint16_t current_value = DAC1DATH;
+    uint16_t target_value = (uint16_t)((0.5f * (float)DAC_RESOLUTION) / VOLTAGE_REF_3V3);
+    
+    for (int i = 0; i < 20; i++) {
+        DAC1DATH = current_value + ((target_value - current_value) * i) / 20;
+        __delay_us(100);  // 100μs × 20 = 2ms
+    }
+    DAC1DATH = target_value;
+}
+
 // =============================
 // Unified ISR for Envelope and Modulation
 // =============================
 void __attribute__((interrupt, auto_psv)) _T1Interrupt(void) {
-    static uint16_t debug_counter = 0;
     static uint8_t pin_state = 0;
     // Phase continuity handled in Biphase-L encoding below
     
-    // Toggle debug pin (RB0) for timing analysis
-    LATBbits.LATB0 = pin_state = !pin_state;
+    // Toggle debug pin (RB0) only during transmission phases
+    if (tx_phase == DATA_PHASE || tx_phase == PRE_AMPLI_RAMP_UP || tx_phase == POST_AMPLI_RAMP_DOWN || tx_phase == PREAMBLE_PHASE || tx_phase == POSTAMBLE_PHASE) {
+        LATBbits.LATB0 = pin_state = !pin_state;
+    }
     
-    // Millisecond counter management
-    // Timer1 = 6400 Hz → 1ms = 6.4 échantillons
-    #define MS_PER_INCREMENT 6  // Approximation 6400/6 = 1066 Hz (trop rapide!)
-    // CORRECTION: 6400 Hz / 6.4 = 1000 Hz (1ms exact)
-    static uint16_t sub_ms_counter = 0;
-    static uint8_t fractional_counter = 0;
-    
-    sub_ms_counter++;
-    // Simulation de 6.4 échantillons par ms avec 6 + 0.4 fractionnaire
-    if (sub_ms_counter >= 6) {
-        sub_ms_counter = 0;
-        fractional_counter += 4;  // Accumulation 0.4
-        if (fractional_counter >= 10) {
-            fractional_counter -= 10;
-            // Skip this increment (6.4 au lieu de 6)
-        } else {
-            millis_counter++;
-        }
+    // Timer1 = 6400 Hz, 1ms = 6.4 samples exact
+    static uint16_t sample_accumulator = 0;
+    sample_accumulator += 1000;
+    if (sample_accumulator >= 6400) {
+        millis_counter++;
+        sample_accumulator -= 6400;
     }
     
     // Biphase-L modulation handling
@@ -221,57 +255,35 @@ void __attribute__((interrupt, auto_psv)) _T1Interrupt(void) {
         uint16_t dac_value = DAC_OFFSET;
 
         switch(tx_phase) {
-            // RF ramp-up phase: no modulation
+            // RF ramp-up phase: no modulation, fixed DC level
             case PRE_AMPLI_RAMP_UP:
-                dac_value = DAC_OFFSET;  // Midpoint voltage
+                dac_value = (uint16_t)((0.5f * (float)DAC_RESOLUTION) / VOLTAGE_REF_3V3);  // 500mV bias level (quiet state)
+                tx_phase = PREAMBLE_PHASE;  // Immediate transition to preamble
+                sample_count = 0;  // Reset counter for preamble
                 break;
                 
             // RF ramp-down phase: no modulation
             case POST_AMPLI_RAMP_DOWN:
-                dac_value = DAC_OFFSET;  // Midpoint voltage
+                dac_value = (uint16_t)((0.5f * (float)DAC_RESOLUTION) / VOLTAGE_REF_3V3);  // 500mV bias level (quiet state)
                 break;
                 
             // Unmodulated carrier phase  
             case PREAMBLE_PHASE:
-                // For ADL5375-05: unmodulated = Q at bias level (500mV)
-                dac_value = (uint16_t)((0.5f * (float)DAC_RESOLUTION) / VOLTAGE_REF_3V3);  // 500mV bias level
+                dac_value = (uint16_t)((0.5f * (float)DAC_RESOLUTION) / VOLTAGE_REF_3V3);
                 
                 // Check if preamble duration completed
                 if (++sample_count >= PREAMBLE_SAMPLES) {
                     sample_count = 0;
                     tx_phase = DATA_PHASE;
-                    // Phase reset for data transmission
                 }
                 break;
 
-            // Data transmission phase
+            // Data transmission phase - normal modulation
             case DATA_PHASE:
                 if (bit_index < MESSAGE_BITS) {
                     uint8_t current_bit = beacon_frame[bit_index];
-                    float phase_shift;
                     
-                    // Biphase-L encoding: bit 1 = +/-, bit 0 = -/+
-                    if (current_bit == 1) {
-                        phase_shift = (sample_count < OVERSAMPLING/2) ? 
-                            +PHASE_SHIFT_RADIANS : -PHASE_SHIFT_RADIANS;
-                    } else {
-                        phase_shift = (sample_count < OVERSAMPLING/2) ? 
-                            -PHASE_SHIFT_RADIANS : +PHASE_SHIFT_RADIANS;
-                    }
-                    
-                    // Phase continuity maintained automatically in I/Q modulation
-                    
-                    // Calculate ADL5375-05 Q channel value with current envelope
-                    dac_value = calculate_adl5375_q_channel(phase_shift, 1);
-                    
-                    // Debug logging (sample every 500 cycles)
-                    static uint16_t log_counter = 0;
-                    if (++log_counter >= 500) {
-                        log_counter = 0;
-                        ISR_LOG_PHASE(sample_count & 0x0F, envelope_gain, dac_value);
-                    } 
-
-                    // End of symbol handling
+                    dac_value = signal_processor_get_biphase_l_value(current_bit, sample_count, OVERSAMPLING);                    
                     if (++sample_count >= OVERSAMPLING) {
                         sample_count = 0;
                         bit_index++;
@@ -282,9 +294,9 @@ void __attribute__((interrupt, auto_psv)) _T1Interrupt(void) {
                 }
                 break;
 
-            // Post-transmission silence
+            // Post-transmission silence  
             case POSTAMBLE_PHASE:
-                dac_value = DAC_OFFSET;  // Midpoint voltage
+                dac_value = (uint16_t)((0.5f * (float)DAC_RESOLUTION) / VOLTAGE_REF_3V3);
                 if (++sample_count >= POSTAMBLE_SAMPLES) {
                     tx_phase = POST_AMPLI_RAMP_DOWN;
                     current_ramp_count = 0;
@@ -294,11 +306,7 @@ void __attribute__((interrupt, auto_psv)) _T1Interrupt(void) {
                 
             // System idle state
             case IDLE_STATE:
-                dac_value = DAC_OFFSET;  // Midpoint voltage
-                if (++debug_counter >= 1000) {
-                    debug_counter = 0;
-                    ISR_LOG_PHASE(carrier_phase & 0x0F, envelope_gain, dac_value);
-                }
+                dac_value = (uint16_t)((0.5f * (float)DAC_RESOLUTION) / VOLTAGE_REF_3V3);
                 break;
         }
         
@@ -309,6 +317,7 @@ void __attribute__((interrupt, auto_psv)) _T1Interrupt(void) {
         static tx_phase_t previous_phase = IDLE_STATE;
         if (tx_phase == IDLE_STATE && previous_phase != IDLE_STATE) {
             transmission_complete_flag = 1;
+            transmission_complete_callback();
         }
         previous_phase = tx_phase;
     }
@@ -322,7 +331,7 @@ void __attribute__((interrupt, auto_psv)) _T1Interrupt(void) {
             } else {
                 envelope_gain = 1.0f;
                 tx_phase = PREAMBLE_PHASE;
-                sample_count = 0;  // Reset for preamble
+                sample_count = 0;
             }
             break;
 
@@ -371,6 +380,8 @@ uint16_t adapt_dac_for_adl5375(uint16_t dac_value) {
 
 // Calculate Q channel value for ADL5375-05 BPSK modulation
 uint16_t calculate_adl5375_q_channel(float phase_shift, uint8_t apply_envelope) {
+    // Facteur d'augmentation d'amplitude (10%)
+    const float amplitude_scale = 1.00f;
     // ADL5375-05: 500mV bias ± 500mV swing = 0-1V range
     // Q channel modulation: bias + sin(±1.1 rad) * swing/2
     
@@ -378,9 +389,9 @@ uint16_t calculate_adl5375_q_channel(float phase_shift, uint8_t apply_envelope) 
     
     // Add BPSK modulation based on phase shift
     if (phase_shift >= 0) {
-        q_voltage += (sinf(PHASE_SHIFT_RADIANS) * (float)ADL5375_SWING_MV / 2000.0f);  // +modulation
+        q_voltage += (sinf(PHASE_SHIFT_RADIANS) * (float)ADL5375_SWING_MV / 2000.0f) * amplitude_scale;  // +modulation
     } else {
-        q_voltage += (sinf(-PHASE_SHIFT_RADIANS) * (float)ADL5375_SWING_MV / 2000.0f); // -modulation  
+        q_voltage += (sinf(-PHASE_SHIFT_RADIANS) * (float)ADL5375_SWING_MV / 2000.0f) * amplitude_scale; // -modulation  
     }
     
     // Apply envelope gain for RF ramp up/down
@@ -459,6 +470,8 @@ void start_transmission(volatile const uint8_t* data) {
     envelope_gain = 0.0f;
     
     // Activate RF systems
+    rf_start_transmission();        // Activate complete RF chain (ADF4351 + ADL5375-05 + PA)
+    __delay_ms(5);                  // Stabilization delay of carrier
     control_rf_amplifier(1);       // Enable RF amplifier
     LED_TX_PIN = 0;                // Turn on transmission LED
     tx_phase = PRE_AMPLI_RAMP_UP;  // Start transmission sequence
@@ -481,6 +494,7 @@ void system_init(void) {
     system_debug_init();       // Initialize debug system
     init_comm_uart();          // Set up communication UART
     init_timer1();             // Configure sample timer
+    signal_processor_init();   // Initialize modulation LUT
     
     // Initialize RF modules (managed by rf_interface.c)
     rf_initialize_all_modules(); // Initialize complete RF chain
