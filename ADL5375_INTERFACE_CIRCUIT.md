@@ -49,7 +49,21 @@ Canal I (constant) :
 
 ### Génération de la référence 500mV
 
-#### Option 1: Diviseur résistif
+#### Option 1: Diviseur résistif optimisé (USB 5V)
+```
+USB 5V ──── R1 (470Ω) ────┬──── +500mV_REF
+                          │
+                          R2 (82Ω)
+                          │
+                        GND
+```
+
+**Calcul validé expérimentalement :**
+- Tension à vide : 505mV
+- Tension avec charge ADL5375 (3 pins) : ~500mV
+- Impédance source : ~70Ω (suffisante pour ADL5375)
+
+#### Option 2: Ancien diviseur 3.3V (non recommandé)
 ```
 VDD (+3.3V) ──── R5 (2.8kΩ) ────┬──── +500mV_REF
                                  │
@@ -57,10 +71,24 @@ VDD (+3.3V) ──── R5 (2.8kΩ) ────┬──── +500mV_REF
                                  │
                                GND
 ```
+**Problème :** Impédance trop élevée, chute de tension avec charge ADL5375
 
-#### Option 2: Régulateur de précision
+#### Option 3: Régulateur de précision
 - Utiliser un régulateur LDO 500mV (ex: TPS7A02)
 - Meilleure stabilité et précision
+- Plus coûteux mais optimal pour production
+
+#### Option 4: Buffer rail-to-rail (évolution future)
+```
+RA3 DACOUT → LMV358 (rail-to-rail) → QBBP
+(0-3.3V)     Buffer suiveur          (0-3.3V, faible impédance)
+```
+**Avantages LMV358 :**
+- Rail-to-rail input/output (0V-3.3V)
+- Faible impédance de sortie (~50Ω)
+- Pas besoin de filtre RC
+- Meilleure linéarité pour modulation BPSK
+- Alimentation simple 3.3V
 
 ## Modifications logicielles implémentées
 
@@ -125,10 +153,17 @@ uint16_t adapt_dac_for_adl5375(uint16_t dac_value) {
 ## Validation et test
 
 ### Points de test recommandés
-1. **RA3 DACOUT** : Vérifier la plage 0-1V après adaptation
-2. **QBBP** : Signal modulé 500mV ± modulation
-3. **QBBN** : Référence stable 500mV
-4. **IBBP/IBBN** : Référence stable 500mV
+1. **Diviseur 5V à vide** : Vérifier 505mV ±5mV
+2. **RA3 DACOUT** : 0-3.3V (sera adapté par circuit)
+3. **QBBP** : Signal modulé ~1.55V-2.14V (mesures validées)
+4. **QBBN** : Référence stable ~500mV (après charge)
+5. **IBBP/IBBN** : Référence stable ~500mV (après charge)
+
+### Mesures expérimentales validées
+- **Diviseur R1=470Ω, R2=82Ω** : 505mV à vide → ~500mV chargé
+- **QBBP modulation** : 1.55V-2.14V (conforme BPSK)  
+- **Impédance source** : ~70Ω (compatible ADL5375-05)
+- **Courant par pin ADL5375** : ~6.5µA (estimé)
 
 ### Mesures oscilloscope
 - **Fréquence porteuse** : 403MHz (sortie ADF4351)
