@@ -39,7 +39,6 @@ RA3 DACOUT → Circuit adaptation → QBBP (canal Q modulé)
 - **Séquence complète 144 bits validée:** voir `logs/sequence_binaire_timing.txt`
 
 
-
 ## Fonctionnalités
 
 ## Modes de Fonctionnement
@@ -334,7 +333,6 @@ Compatible avec le décodeur 406 MHz disponible dans `../dec406_v10.2/`
 - [x] **Modulation I/Q** : Optimisée pour ADL5375-05 (bias 500mV)
 - [x] **Interface DAC→I/Q** : Circuit d'adaptation implémenté
 - [x] **Architecture modulaire** : RF drivers séparés
-- [ ] **Interface Web** : Configuration via navigateur
 - [ ] **Tests Hardware** : Validation RF complète avec oscilloscope
 - [ ] **Optimisations futures** : Amélioration performances T.001
 
