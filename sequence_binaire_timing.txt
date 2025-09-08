@@ -1,0 +1,64 @@
+=== SEQUENCES BINAIRES CALCULEES TRAME TEST (COSPAS-SARSAT T.001) ===
+
+Bits 1-15 (PREAMBLE):          111111111111111
+Bits 16-24 (FRAME SYNC TEST):  011010000
+Bit 25 (FORMAT FLAG):          1
+Bit 26 (PROTOCOL FLAG):        0  
+Bits 27-36 (COUNTRY CODE):     0011100011
+Bits 37-40 (PROTOCOL CODE):    1001
+Bits 41-66 (BEACON ID):        00000000000100100011010001010110
+
+SEQUENCE COMPLETE BITS 1-66:
+111111111111111011010000100111000111001000000000001001000110100010101110
+
+GPS + BCH (bits 67-144 - calculés avec coordonnées réelles):
+Bits 67-85 (GPS POSITION):     0100101001011011010  (19 bits)
+Bits 86-106 (BCH1):            000110100010101111100  (21 bits) 
+Bits 107-132 (PDF2):          00100011010001011101100101  (26 bits)
+Bits 133-144 (BCH2):          101010111100  (12 bits)
+
+SEQUENCE COMPLETE 144 BITS:
+111111111111111011010000100111000111001000000000001001000110100010101110100101001011011010000110100010101111100100011010001011101100101101010111100
+
+=== MESURES OSCILLOSCOPE ===
+
+t=0 ms -> t=160 ms préambule théorique
+bit 1 : (de 0V à) -224mV pendant 1.24ms puis de -224mV à +224mV pendant 1.24ms; total durée bit 1 : 2.48ms
+bit 2 : -224mV pendant 1.24ms puis +224mV pendant 1.24ms; total: 2.48ms
+bit 3 : -224mV pendant 1.24ms, puis +224mV pendant1.24ms; total: 2.48ms
+...
+bit 15 : -224mV pendant 1.24ms, puis +224mV pendant 1.24ms; total:2.48ms total synchro: 15*2.48ms = 37.2ms
+
+fin théorique du préambule t=197.2ms
+
+bit 16: 197.70ms: +220mV -> -216mV ==> 0
+bit 17: 200.20ms: -216mV -> +220mV ==> 1
+bit 18: 202.70ms: -216mV -> +220mV ==> 1
+bit 19: 205.20ms: +220mV -> -216mV ==> 0
+bit 20: 207.80ms: -216mV -> +220mV ==> 1
+bit 21: 210.26ms: +220mV -> -216mV ==> 0
+bit 22: 212.78ms: +220mV -> -216mV ==> 0
+bit 23: 215.28ms: +220mV -> -216mV ==> 0
+bit 24: 217.74ms: +220mV -> -216mV ==> 0
+bit 25: 220.26ms: -216mV -> +220mV ==> 1
+bit 26: 222.76ms: +220mV -> -216mV ==> 0
+bit 27: 225.26ms: +220mV -> -216mV ==> 0
+bit 28: 227.78ms: +220mV -> -216mV ==> 0
+bit 29: 230.26ms: -216mV -> +220mV ==> 1
+bit 30: 232.76ms: -216mV -> +220mV ==> 1
+bit 31: 235.14ms: -216mV -> +220mV ==> 1
+bit 32: 237.68ms: +220mV -> -216mV ==> 0
+bit 33: 240.16ms: +220mV -> -216mV ==> 0
+bit 34 ==> 0
+bit 35 ==> 1
+bit 36 ==> 1
+bit 37 ==> 1
+bit 38 ==> 0
+bit 39 ==> 0
+bit 40 ==> 1
+bit 41 ==> 0
+bit 42 ==> 0
+bit 43 ==> 0
+bit 44 ==> 0
+bit 45 ==> 0
+bit 46 ==> 1
