@@ -22,15 +22,12 @@ SEQUENCE COMPLETE 144 BITS:
 
 === MESURES OSCILLOSCOPE ===
 
-t=0 ms -> t=160 ms préambule théorique
-bit 1 : (de 0V à) -224mV pendant 1.24ms puis de -224mV à +224mV pendant 1.24ms; total durée bit 1 : 2.48ms
-bit 2 : -224mV pendant 1.24ms puis +224mV pendant 1.24ms; total: 2.48ms
-bit 3 : -224mV pendant 1.24ms, puis +224mV pendant1.24ms; total: 2.48ms
+t=0.000 ms -> t=160 ms préambule théorique
+bit 1 : (de 0V à) -216mV pendant 1.25ms puis de -216mV à +220mV pendant 1.25ms; total durée bit 1 : 2.50ms
+bit 2 : -216mV pendant 1.25ms puis +220mV pendant 1.25ms; total: 2.50ms
+bit 3 : -216mV pendant 1.25ms, puis +220mV pendant1.25ms; total: 2.50ms
 ...
-bit 15 : -224mV pendant 1.24ms, puis +224mV pendant 1.24ms; total:2.48ms total synchro: 15*2.48ms = 37.2ms
-
-fin théorique du préambule t=197.2ms
-
+bit 15 : -216mV pendant 1.25ms, puis +220mV pendant 1.25ms; total:2.50ms total synchro: 15*2.50ms = 37.5ms
 bit 16: 197.70ms: +220mV -> -216mV ==> 0
 bit 17: 200.20ms: -216mV -> +220mV ==> 1
 bit 18: 202.70ms: -216mV -> +220mV ==> 1
