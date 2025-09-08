@@ -22,7 +22,7 @@ SEQUENCE COMPLETE 144 BITS:
 
 === MESURES OSCILLOSCOPE ===
 
-RA3-DACOUT bande de base à 400Hz --> R1 33 Ohms + C1 10 µF // C2 48pF --> QBBP (ADL5375-05) <-- 500mV REF
+RA3-DACOUT bande de base à 400Hz --> R1 33 Ohms + C1 10 µF // C2 48pF --> QBBP (ADL5375-05) <-- R3 680 Ohms <-- 500mV REF
 CH1 x1 coupling AC sur QBBP 1ms/div 100mV/div
 CH2 x10 coupling DC sur RB0 1V/div Trigger CH2 Falling 0.00V
 
