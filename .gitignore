@@ -1,0 +1,28 @@
+# MPLAB X IDE
+build/
+dist/
+debug/
+.generated_files/
+nbproject/private/
+nbproject/*.properties
+nbproject/*.mk
+nbproject/Package-*.bash
+
+# Compiled files
+*.o
+*.d
+*.elf
+*.hex
+*.map
+*.cof
+*.sym
+
+# Backup files
+*~
+*.bak
+*.tmp
+*.swp
+
+# Logs
+*.log
+logs/*.txt
