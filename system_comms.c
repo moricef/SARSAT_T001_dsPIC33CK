@@ -169,8 +169,9 @@ uint16_t calculate_idle_dac_value(void) {
 }
 
 uint16_t calculate_carrier_dac_value(void) {
-    // Carrier state: 500mV bias for ADL5375
-    return (uint16_t)((0.5f * DAC_RESOLUTION) / VOLTAGE_REF_3V3);
+    // Carrier state: 1.65V bias for ADL5375 with LMV358 filter
+    float bias_voltage = ADL5375_BIAS_MV / 1000.0f;  // Convert mV to V
+    return (uint16_t)((bias_voltage * DAC_RESOLUTION) / VOLTAGE_REF_3V3);
 }
 
 uint16_t calculate_bpsk_dac_value(uint8_t bit_value, uint16_t sample_index) {

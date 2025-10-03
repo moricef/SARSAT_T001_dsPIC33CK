@@ -11,11 +11,11 @@
 #define DAC_BIAS_LEVEL          2048            // 1.65V mid-point (500mV for ADL5375)
 #define VOLTAGE_REF_3V3         3.3f            // dsPIC33CK supply voltage
 
-// ADL5375 I/Q Modulator Configuration
-#define ADL5375_BIAS_MV         500             // 500mV bias level
-#define ADL5375_SWING_MV        500             // 500mV peak-to-peak swing
-#define ADL5375_MIN_VOLTAGE     0.0f            // Minimum output voltage
-#define ADL5375_MAX_VOLTAGE     1.0f            // Maximum output voltage
+// ADL5375 I/Q Modulator Configuration with LMV358 filter stages (5V supply)
+#define ADL5375_BIAS_MV         1650            // 1650mV bias level (3.3V/2)
+#define ADL5375_SWING_MV        1000            // 1000mV peak-to-peak swing (±500mV)
+#define ADL5375_MIN_VOLTAGE     1.15f           // Minimum output voltage (1.65V - 0.5V)
+#define ADL5375_MAX_VOLTAGE     2.15f           // Maximum output voltage (1.65V + 0.5V)
 
 // BPSK Modulation Parameters
 #define PHASE_SHIFT_RADIANS     1.1f            // ±1.1 rad (SARSAT T.001 standard)
