@@ -13,7 +13,7 @@ Firmware for COSPAS-SARSAT T.001 emergency beacon using dsPIC33CK64MC105 microco
 ## Signal Chain
 
 ```
-DAC (RA3) → Bessel Filter → C 47µF → R 12Ω → QBBP (ADL5375)
+DAC (RA3) → Bessel Filter → C 47µF → R 15Ω → QBBP (ADL5375)
                                                 ↓
                                      5V → R 470Ω → QBBP
                                                 ↓
@@ -58,27 +58,25 @@ DAC (RA3) → Bessel Filter → C 47µF → R 12Ω → QBBP (ADL5375)
 
 - **DAC output (RA3)**: 896mV p-p (1.20V - 2.10V)
 - **Filter output**: 896mV p-p
-- **QBBP input**: 708mV p-p @ 12Ω, DC bias 480mV
-- **Attenuation**: 79% (R 12Ω vs 45Ω load impedance)
+- **QBBP input**: 672mV p-p @ 15Ω, DC bias 480mV
+- **Attenuation**: 75% (R 15Ω vs 45Ω load impedance)
 
 ## Demodulation Performance
 
-**Test frequency**: 403.037 MHz (development/calibration)
+**Test frequency range**: 403.035-403.040 MHz (development/calibration)
 
-### Initial tests (R 70Ω):
-| Mode     | Frequency (MHz)       | R range (Ω) | Decoding |
-|----------|----------------------|-------------|----------|
-| NFM      | 403.037              | >65-70      | Good     |
-| USB      | 403.036500           | 0-500       | 100%     |
-| RAW IQ   | 403.038200-403.038500| 0-300       | ~100%    |
+**Optimized configuration (R 15Ω, C 47µF):**
+| Mode     | Frequency (MHz)       | Decoding Performance |
+|----------|----------------------|----------------------|
+| NFM      | 403.035-403.040      | Excellent            |
+| USB      | Wide range           | 100%                 |
+| RAW IQ   | Wide range           | ~100%                |
 
-### Optimized configuration (R 12Ω):
-| Parameter        | Value          | Notes                    |
-|------------------|----------------|--------------------------|
-| Coupling cap     | 47µF           | Improved low-freq response|
-| Series R         | 12Ω            | Reduced attenuation       |
-| QBBP amplitude   | 708mV p-p      | 5× improvement vs 70Ω    |
-| Decoding         | Excellent      | Compatible scan406.pl     |
+**Signal chain:**
+- Coupling cap: 47µF (improved low-freq response)
+- Series R: 15Ω (optimized attenuation)
+- QBBP amplitude: 672mV p-p
+- Compatible with scan406.pl optimized parameters
 
 ## Git Branches
 
@@ -99,7 +97,7 @@ MPLAB X IDE with XC16 compiler.
 
 ## Notes
 
-- R 12Ω optimized for maximum amplitude while maintaining signal integrity
+- R 15Ω optimized for maximum amplitude while maintaining signal integrity
 - C 47µF provides better low-frequency coupling for Biphase-L signal
 - Bessel filter provides linear phase response critical for BPSK integrity
 - Breadboard prototype - PCB required for production
