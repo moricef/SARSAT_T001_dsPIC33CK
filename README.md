@@ -101,4 +101,4 @@ MPLAB X IDE with XC16 compiler.
 - C 47µF provides better low-frequency coupling for Biphase-L signal
 - Bessel filter provides linear phase response critical for BPSK integrity
 - Breadboard prototype - PCB required for production
-- Test frequency 403.037 MHz - production beacons use 406.xxx MHz channels per T.012
+- Test frequency range 403.035 MHz to 403.040MHz- production beacons use 406.xxx MHz channels per T.012
