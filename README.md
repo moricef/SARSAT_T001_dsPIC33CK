@@ -2,6 +2,8 @@
 
 Firmware for COSPAS-SARSAT T.001 emergency beacon using dsPIC33CK64MC105 microcontroller.
 
+**Status: Proof of Concept (breadboard prototype validated)**
+
 ## Hardware
 
 - **MCU**: dsPIC33CK64MC105 @ 100 MHz
@@ -95,10 +97,18 @@ DAC (RA3) → Bessel Filter → C 47µF → R 15Ω → QBBP (ADL5375)
 
 MPLAB X IDE with XC16 compiler.
 
+## Project Status
+
+**Current stage: Proof of Concept**
+- ✅ Breadboard prototype validated
+- ✅ Signal chain optimized (DAC → Bessel filter → ADL5375)
+- ✅ Excellent decoding performance (NFM 403.035-403.040 MHz)
+- ⏭️ Next step: PCB design with proper RF layout and ground plane
+
 ## Notes
 
 - R 15Ω optimized for maximum amplitude while maintaining signal integrity
 - C 47µF provides better low-frequency coupling for Biphase-L signal
 - Bessel filter provides linear phase response critical for BPSK integrity
-- Breadboard prototype - PCB required for production
-- Test frequency range 403.035 MHz to 403.040MHz- production beacons use 406.xxx MHz channels per T.012
+- Test frequency range 403.035-403.040 MHz (scan centered on 403.037 MHz) - production beacons use 406.xxx MHz channels per T.012
+- **PCB required for production** - breadboard introduces noise and impedance issues
