@@ -10,7 +10,7 @@ Firmware for COSPAS-SARSAT T.001 emergency beacon using dsPIC33CK64MC105 microco
 - **PLL**: ADF4351 (403 MHz)
 - **Modulator**: ADL5375 I/Q modulator
 - **DAC**: Internal 12-bit DAC (RA3 output)
-- **Filter**: 4th order Bessel lowpass 600Hz (2x LM358P Sallen-Key stages)
+- **Filter**: 4th order Bessel lowpass 800Hz (2x LM358P Sallen-Key stages)
 
 ## Signal Chain
 
@@ -51,10 +51,10 @@ DAC (RA3) → Bessel Filter → C 47µF → R 15Ω → QBBP (ADL5375)
 ## Filter Characteristics
 
 - **Type**: Active Bessel 4th order
-- **Cutoff**: 600 Hz (R scaled 2×)
+- **Cutoff**: 800 Hz
 - **Stages**: 2x 2nd order Sallen-Key
 - **Gain**: Unity (1.0)
-- **Values**: R1a=R2a=R1b=R2b=20kΩ, C1a=9.679nF, C2a=8.885nF, C1b=13.324nF, C2b=5.135nF
+- **Values**: R1a=R2a=R1b=R2b=15kΩ, C1a=9.679nF, C2a=8.885nF, C1b=13.324nF, C2b=5.135nF
 
 ## Signal Levels
 
@@ -65,14 +65,14 @@ DAC (RA3) → Bessel Filter → C 47µF → R 15Ω → QBBP (ADL5375)
 
 ## Demodulation Performance
 
-**Test frequency range**: 403.035-403.040 MHz (development/calibration)
+**ADF4351 configured frequency**: 403.040 MHz (development/calibration)
 
-**Optimized configuration (R 15Ω, C 47µF):**
+**Optimized configuration (Bessel 800Hz, R 15Ω, C 47µF):**
 | Mode     | Frequency (MHz)       | Decoding Performance |
 |----------|----------------------|----------------------|
-| NFM      | 403.035-403.040      | Excellent            |
-| USB      | Wide range           | 100%                 |
-| RAW IQ   | Wide range           | ~100%                |
+| NFM      | 403.034-403.040      | Excellent            |
+| RAW IQ   | 403.040              | ~100% (on-frequency) |
+| scan406  | 403.037 (centered)   | Compatible           |
 
 **Signal chain:**
 - Coupling cap: 47µF (improved low-freq response)
@@ -110,5 +110,7 @@ MPLAB X IDE with XC16 compiler.
 - R 15Ω optimized for maximum amplitude while maintaining signal integrity
 - C 47µF provides better low-frequency coupling for Biphase-L signal
 - Bessel filter provides linear phase response critical for BPSK integrity
-- Test frequency range 403.035-403.040 MHz (scan centered on 403.037 MHz) - production beacons use 406.xxx MHz channels per T.012
+- ADF4351 configured at 403.040 MHz - production beacons use 406.xxx MHz channels per T.012
+- NFM decoding range: 403.034-403.040 MHz (6 kHz bandwidth)
+- RAW IQ decodes on exact frequency (403.040 MHz)
 - **PCB required for production** - breadboard introduces noise and impedance issues
