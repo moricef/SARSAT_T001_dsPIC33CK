@@ -13,6 +13,7 @@
       <itemPath>system_definitions.h</itemPath>
       <itemPath>spi2_test.h</itemPath>
       <itemPath>drivers/mcp4922_driver.h</itemPath>
+      <itemPath>gps_nmea.h</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -35,6 +36,7 @@
       <itemPath>system_comms.c</itemPath>
       <itemPath>spi2_test.c</itemPath>
       <itemPath>drivers/mcp4922_driver.c</itemPath>
+      <itemPath>gps_nmea.c</itemPath>
     </logicalFolder>
   </logicalFolder>
   <sourceRootList>

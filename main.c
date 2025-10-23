@@ -6,6 +6,7 @@
 #include "rf_interface.h"   // Pour les fonctions RF
 #include "spi2_test.h"      // Test de compatibilité SPI2
 #include "drivers/mcp4922_driver.h"  // Driver MCP4922
+#include "gps_nmea.h"       // GPS NMEA support
 
 // Declarations externes
 extern volatile uint32_t millis_counter;
@@ -96,22 +97,40 @@ int main(void) {
 
     while(1) {
 		process_uart_commands();  // Handle commands
-		
+
         uint32_t current_time;
         __builtin_disable_interrupts();
         current_time = millis_counter;
         __builtin_enable_interrupts();
-        
+
+        // Process GPS data
+        if (gps_update()) {
+            // New GPS data received - frame will be rebuilt at next transmission
+        }
+
         // Transfert des logs UART
         while (isr_log_tail != isr_log_head) {
-            while (U2STAHbits.UTXBF); 
+            while (U2STAHbits.UTXBF);
             U2TXREG = isr_log_buf[isr_log_tail];
             isr_log_tail = (isr_log_tail + 1) % ISR_LOG_BUF_SIZE;
         }
-        
+
         // Periodic transmission trigger (read switch each time)
         if (should_transmit_beacon()) {
             beacon_frame_type_t current_frame_type = get_frame_type_from_switch();
+
+            // Print GPS status if available
+            if (gps_has_fix()) {
+                DEBUG_LOG_FLUSH("GPS Fix: ");
+                const gps_data_t *gps = gps_get_data();
+                debug_print_uint16(gps->satellites);
+                DEBUG_LOG_FLUSH(" sats, Pos: ");
+                debug_print_float(gps->latitude, 6);
+                DEBUG_LOG_FLUSH(", ");
+                debug_print_float(gps->longitude, 6);
+                DEBUG_LOG_FLUSH("\r\n");
+            }
+
             DEBUG_LOG_FLUSH("Starting periodic transmission - Mode: ");
             DEBUG_LOG_FLUSH(current_frame_type == BEACON_TEST_FRAME ? "TEST\r\n" : "EXERCISE\r\n");
             start_beacon_frame(current_frame_type);

@@ -1,0 +1,34 @@
+Voici une analyse sur la pertinence d’un filtre de Bessel dans ton projet SARSAT (chaîne de modulation BPSK, standard COSPAS-SARSAT), basée sur les principes d’électronique et de traitement du signal, **hors contenu du fichier README** :
+
+---
+
+### Pourquoi le filtre de Bessel est pertinent dans ce contexte
+
+#### 1. Transmission de données modulées (BPSK, biphase-L)
+La modulation BPSK (Binary Phase Shift Keying) et le codage biphase-L exigent que la forme des transitions du signal soit **préservée temporellement**. Toute distorsion de phase ou retard non linéaire peut provoquer des erreurs de décodage, notamment sur les transitions entre bits.
+
+#### 2. Avantages intrinsèques du filtre de Bessel
+- **Phase linéaire** : Le Bessel est le filtre analogique qui présente la meilleure linéarité de phase dans la bande passante utile. Cela signifie que tous les composants fréquentiels du signal subissent le même retard, préservant la forme originale des fronts, sans "chevauchement" ni déformation temporelle.
+- **Temps de montée constant** : Les filtres de Bessel minimisent la distorsion des signaux impulsionnels ou des fronts raides, ce qui est crucial pour la transmission de données.
+- **Moins de distorsion inter-symboles** : Comparé à un Butterworth (qui privilégie l’atténuation dans la bande coupée) ou à un Chebyshev (qui accentue le rejet dans la bande coupée mais provoque des oscillations de phase), le Bessel offre une supériorité pour les applications où la fidélité temporelle est prioritaire.
+
+#### 3. Application SARSAT
+Dans un émetteur SARSAT :
+- Le signal sort du DAC sous forme numérique reconstituée, avec des transitions potentiellement abruptes.
+- Le filtre analogique doit supprimer les harmoniques hors bande (pour respecter le spectre radio et éviter de polluer d’autres canaux), mais **sans altérer les transitions** qui codent l’information.
+- Un Bessel assure un compromis optimal : le spectre est limité tout en conservant une intégrité maximale du codage temporel.
+
+#### 4. Risques si l’on choisit un autre filtre
+- **Butterworth** : Moins de distorsion d’amplitude, mais phase non linéaire → risque de distorsion sur les transitions (ISI, erreurs de synchronisation).
+- **Chebyshev/Elliptique** : Atténuation rapide hors bande, mais phase très non linéaire → très mauvais choix pour du BPSK.
+- **RC simple** : Trop de déformation sur les fronts raides, bande passante mal contrôlée.
+
+---
+
+### Conclusion pratique
+
+Le **filtre de Bessel** est le choix de référence pour les chaînes de transmission numériques où la **fidélité des transitions temporelles** est critique, comme dans la modulation BPSK utilisée par SARSAT.  
+Il garantit :
+- Un minimum de distorsion inter-symboles (ISI)
+- Un spectre conforme aux exigences radio
+- Une compatibilité maximale avec les démodulateurs standards

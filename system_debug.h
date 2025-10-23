@@ -17,7 +17,7 @@ extern volatile uint32_t millis_counter;
 // Tampons debogages
 #define DEBUG_BUF_SIZE     256
 #define UART_BUFFER_SIZE   128
-#define ISR_LOG_BUF_SIZE 2048  // Taille sp�cifique pour les logs ISR
+#define ISR_LOG_BUF_SIZE 2048  // Taille specifique pour les logs ISR
 
 // =============================
 // Macros pour les logs

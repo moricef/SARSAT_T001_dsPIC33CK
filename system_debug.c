@@ -4,6 +4,7 @@
 #include "system_comms.h"
 #include "system_debug.h"
 #include "protocol_data.h"
+#include "gps_nmea.h"
 
 // =============================
 // Variables globales
@@ -381,10 +382,13 @@ void process_uart_commands(void) {
                 debug_flags.log_mode = LOG_MODE_NONE;
                 DEBUG_LOG_FLUSH("Debug mode: NONE\r\n");
             }
+            else if (strcmp(cmd_buffer, "GPS") == 0) {
+                gps_print_status();
+            }
             else {
                 DEBUG_LOG_FLUSH("Unknown command: ");
                 DEBUG_LOG_FLUSH(cmd_buffer);
-                DEBUG_LOG_FLUSH("\r\n");
+                DEBUG_LOG_FLUSH("\r\nCommands: LOG ALL, LOG SYSTEM, LOG ISR, LOG NONE, GPS\r\n");
             }
         }
         else if (cmd_index < sizeof(cmd_buffer)-1) {

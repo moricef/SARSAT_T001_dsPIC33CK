@@ -7,6 +7,7 @@
 #include "rf_interface.h"
 #include "signal_processor.h"
 #include "drivers/mcp4922_driver.h"
+#include "gps_nmea.h"
 
 // RF control function declarations
 extern void rf_start_transmission(void);
@@ -358,9 +359,10 @@ void system_init(void) {
     init_gpio();
     init_dac();
     init_comm_uart();
-    
+
     system_debug_init();
     mcp4922_init();              // Initialize MCP4922 DAC
+    gps_init();                  // Initialize GPS UART3
     init_timer1();
     signal_processor_init();
 
