@@ -95,7 +95,7 @@ DAC (RA3) → Bessel Filter → C 47µF → R 15Ω → QBBP (ADL5375)
 
 ## Build
 
-MPLAB X IDE with XC16 compiler.
+MPLAB X IDE with XC-DSC compiler (v3.21 or later).
 
 ## Project Status
 
