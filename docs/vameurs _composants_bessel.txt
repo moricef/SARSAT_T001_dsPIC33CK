@@ -1,0 +1,36 @@
+Pinout MCP4922 pour les 3 pins critiques :
+
+  VREFA (pin 6) :
+  - Tension de référence pour DAC A
+  - Connecte à 3.3V (ou référence de tension précise 2.048V/4.096V)
+  - Découplage : C 100nF proche de la pin
+
+  VREFB (pin 7) :
+  - Tension de référence pour DAC B
+  - Connecte à 3.3V (même que VREFA pour I/Q appariés)
+  - Découplage : C 100nF proche de la pin
+
+  LDAC (pin 5) :
+  - Load DAC - met à jour les sorties simultanément
+  - 2 options :
+    a. Connecter à GND → mise à jour immédiate (mode transparent)
+    b. Connecter à GPIO dsPIC → mise à jour synchrone sur impulsion
+
+  Pour T.001 I/Q synchrone : LDAC → GND (mise à jour immédiate suffisante).
+
+  Configuration gain (dans le code SPI) :
+  - Bit GAIN = 1 → sortie 0 à VREF (gain ×1)
+  - Bit GAIN = 0 → sortie 0 à 2×VREF (gain ×2)
+
+  Recommandation : VREFA = VREFB = 3.3V, LDAC = RB12
+  
+  
+  
+  # Filter Characteristics
+
+- **Type**: Active Bessel 4th order
+- **Cutoff**: 800 Hz
+- **Stages**: 2x 2nd order Sallen-Key
+- **Gain**: Unity (1.0)
+- **Values**: R1a=R2a=R1b=R2b=15kΩ, C1a=9.679nF, C2a=8.885nF, C1b=13.324nF, C2b=5.135nF
+

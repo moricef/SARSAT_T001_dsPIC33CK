@@ -30,7 +30,7 @@
 #define PROTOCOL_ELT_DT 0x9 // 1001 binary
 
 // Frame sync patterns
-#define SYNC_NORMAL_LONG 0x017  // 000101111 (9 bits MSB-first)
+#define SYNC_NORMAL_LONG 0x02F  // 000101111 (9 bits MSB-first)
 #define SYNC_SELF_TEST   0x0D0  // 011010000 (9 bits MSB-first)
 
 // Country code (France)
