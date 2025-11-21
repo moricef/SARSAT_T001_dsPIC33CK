@@ -91,5 +91,6 @@ extern gps_data_t gps_data;
 extern volatile uint8_t gps_rx_buffer[GPS_BUFFER_SIZE];
 extern volatile uint8_t gps_rx_head;
 extern volatile uint8_t gps_rx_tail;
+extern volatile uint8_t gps_debug_raw;  // 0=off, 1=print raw NMEA sentences
 
 #endif // GPS_NMEA_H

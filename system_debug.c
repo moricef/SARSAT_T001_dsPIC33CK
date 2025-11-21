@@ -385,10 +385,18 @@ void process_uart_commands(void) {
             else if (strcmp(cmd_buffer, "GPS") == 0) {
                 gps_print_status();
             }
+            else if (strcmp(cmd_buffer, "GPS RAW ON") == 0) {
+                gps_debug_raw = 1;
+                DEBUG_LOG_FLUSH("GPS RAW mode: ON\r\n");
+            }
+            else if (strcmp(cmd_buffer, "GPS RAW OFF") == 0) {
+                gps_debug_raw = 0;
+                DEBUG_LOG_FLUSH("GPS RAW mode: OFF\r\n");
+            }
             else {
                 DEBUG_LOG_FLUSH("Unknown command: ");
                 DEBUG_LOG_FLUSH(cmd_buffer);
-                DEBUG_LOG_FLUSH("\r\nCommands: LOG ALL, LOG SYSTEM, LOG ISR, LOG NONE, GPS\r\n");
+                DEBUG_LOG_FLUSH("\r\nCommands: LOG ALL, LOG SYSTEM, LOG ISR, LOG NONE, GPS, GPS RAW ON, GPS RAW OFF\r\n");
             }
         }
         else if (cmd_index < sizeof(cmd_buffer)-1) {

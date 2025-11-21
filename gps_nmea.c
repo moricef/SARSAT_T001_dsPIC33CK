@@ -16,6 +16,9 @@ volatile uint8_t gps_rx_tail = 0;
 static char nmea_sentence[GPS_NMEA_MAX_LENGTH];
 static uint8_t nmea_index = 0;
 
+// GPS debug mode
+volatile uint8_t gps_debug_raw = 0;  // 0=off, 1=print raw NMEA sentences
+
 // =============================
 // UART3 Initialization (GPS)
 // =============================
@@ -266,6 +269,13 @@ uint8_t gps_update(void) {
             // End of sentence
             if (c == '\n') {
                 nmea_sentence[nmea_index] = '\0';
+
+                // Debug: print raw NMEA sentence
+                if (gps_debug_raw) {
+                    DEBUG_LOG_FLUSH("NMEA: ");
+                    DEBUG_LOG_FLUSH(nmea_sentence);
+                    DEBUG_LOG_FLUSH("\r\n");
+                }
 
                 // Parse sentence
                 if (strstr(nmea_sentence, "$GPGGA") || strstr(nmea_sentence, "$GNGGA")) {
