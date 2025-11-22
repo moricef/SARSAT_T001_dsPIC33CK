@@ -142,6 +142,9 @@ int main(void) {
             last_status = current_time;
             DEBUG_LOG_FLUSH("Status: phase=");
             debug_print_uint16(tx_phase);
+            DEBUG_LOG_FLUSH(" gps_rx=");
+            extern volatile uint16_t gps_rx_count;
+            debug_print_uint16(gps_rx_count);
             DEBUG_LOG_FLUSH("\r\n");
         }
         

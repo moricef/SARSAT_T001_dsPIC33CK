@@ -18,6 +18,7 @@ static uint8_t nmea_index = 0;
 
 // GPS debug mode
 volatile uint8_t gps_debug_raw = 1;  // 0=off, 1=print raw NMEA sentences (AUTO ON)
+volatile uint16_t gps_rx_count = 0;  // Count of chars received from GPS
 
 // =============================
 // UART3 Initialization (GPS)
@@ -87,6 +88,8 @@ void __attribute__((interrupt, auto_psv)) _U3RXInterrupt(void) {
     // Read all available data
     while (U3STAHbits.URXBE == 0) {  // While RX buffer not empty
         uint8_t data = U3RXREG & 0xFF;
+
+        gps_rx_count++;  // Count received chars
 
         // Store in circular buffer
         uint8_t next_head = (gps_rx_head + 1) % GPS_BUFFER_SIZE;
