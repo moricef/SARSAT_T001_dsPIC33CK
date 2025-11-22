@@ -17,7 +17,7 @@ static char nmea_sentence[GPS_NMEA_MAX_LENGTH];
 static uint8_t nmea_index = 0;
 
 // GPS debug mode
-volatile uint8_t gps_debug_raw = 0;  // 0=off, 1=print raw NMEA sentences
+volatile uint8_t gps_debug_raw = 1;  // 0=off, 1=print raw NMEA sentences (AUTO ON)
 
 // =============================
 // UART3 Initialization (GPS)
