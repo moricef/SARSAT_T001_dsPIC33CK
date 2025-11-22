@@ -46,7 +46,7 @@ void gps_init(void) {
     // Configure PPS (Peripheral Pin Select) for UART3
     __builtin_write_OSCCONL(OSCCONL | 0x40);    // Unlock PPS
     _U3RXR = 53;                                 // Map U3RX to RP53 (RC5)
-    _RP52R = 0x0001;                            // Map RP52 (RC4) to U3TX (function 1)
+    _RP52R = 0x0003;                            // Map RP52 (RC4) to U3TX (function 1)
     __builtin_write_OSCCONL(OSCCONL & ~0x40);   // Lock PPS
 
     // Configure UART3: 9600 baud, 8N1
@@ -61,19 +61,19 @@ void gps_init(void) {
     // Configure RX interrupt mode
     U3STAHbits.URXISEL = 0; // Interrupt when any character received
 
-    // Clear interrupt flags
+    // Enable UART3 - CRITICAL: UARTEN first, then UTXEN/URXEN (like U1)
+    U3MODEbits.UARTEN = 1;
+    U3MODEbits.UTXEN = 1;
+    U3MODEbits.URXEN = 1;
+
+    // Configure interruptions AFTER enabling UART (like U1)
     IFS3bits.U3RXIF = 0;
-    IFS3bits.U3TXIF = 0;
+    IEC3bits.U3RXIE = 1;
 
-    // Enable RX interrupt
-    IEC3bits.U3RXIE = 1;   // Enable UART3 RX interrupt
-
-    // Enable UART3 - CRITICAL: UARTEN first, then UTXEN/URXEN
-    U3MODEbits.UARTEN = 1;  // Enable UART FIRST
+    // Double activation like U1
+    U3MODEbits.UARTEN = 1;
     __builtin_nop();
     __builtin_nop();
-    U3MODEbits.UTXEN = 1;   // Enable transmit
-    U3MODEbits.URXEN = 1;   // Enable receive
 
     // Initialize GPS data structure
     gps_data.position_valid = 0;
@@ -86,11 +86,21 @@ void gps_init(void) {
     DEBUG_LOG_FLUSH(" ");
     DEBUG_LOG_FLUSH(gps_build_date);
     DEBUG_LOG_FLUSH("]\r\n");
-    DEBUG_LOG_FLUSH("GPS: U3MODEH=");
+    DEBUG_LOG_FLUSH("GPS: U3MODE=");
+    debug_print_hex((U3MODE >> 12) & 0xF);
+    debug_print_hex((U3MODE >> 8) & 0xF);
+    debug_print_hex((U3MODE >> 4) & 0xF);
+    debug_print_hex(U3MODE & 0xF);
+    DEBUG_LOG_FLUSH(" U3MODEH=");
     debug_print_hex((U3MODEH >> 12) & 0xF);
     debug_print_hex((U3MODEH >> 8) & 0xF);
     debug_print_hex((U3MODEH >> 4) & 0xF);
     debug_print_hex(U3MODEH & 0xF);
+    DEBUG_LOG_FLUSH(" IEC3=");
+    debug_print_hex((IEC3 >> 12) & 0xF);
+    debug_print_hex((IEC3 >> 8) & 0xF);
+    debug_print_hex((IEC3 >> 4) & 0xF);
+    debug_print_hex(IEC3 & 0xF);
     DEBUG_LOG_FLUSH("\r\n");
 }
 
