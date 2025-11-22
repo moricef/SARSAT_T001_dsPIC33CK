@@ -5,6 +5,10 @@
 #include <string.h>
 #include <stdlib.h>
 
+// Build timestamp for GPS module
+const char gps_build_time[] = __TIME__;
+const char gps_build_date[] = __DATE__;
+
 // =============================
 // Global Variables
 // =============================
@@ -33,16 +37,16 @@ void gps_init(void) {
     U3STAH = 0;
 
     // Configure GPIO pins for UART3 GPS
-    // RC4 (RP52) = U3RX (input from GPS TX)
-    // RC5 (RP53) = U3TX (output to GPS RX - optional, not used for receive-only GPS)
-    TRISCbits.TRISC4 = 1;       // RC4 as input (U3RX)
-    TRISCbits.TRISC5 = 0;       // RC5 as output (U3TX) - optional
+    // RC5 (RP53) = U3RX (input from GPS TX)
+    // RC4 (RP52) = U3TX (output to GPS RX)
+    TRISCbits.TRISC5 = 1;       // RC5 as input (U3RX)
+    TRISCbits.TRISC4 = 0;       // RC4 as output (U3TX)
     // Note: RC4 and RC5 are digital-only pins, no ANSEL configuration needed
 
     // Configure PPS (Peripheral Pin Select) for UART3
     __builtin_write_OSCCONL(OSCCONL | 0x40);    // Unlock PPS
-    _U3RXR = 52;                                 // Map U3RX to RP52 (RC4)
-    _RP53R = 0x0001;                            // Map RP53 (RC5) to U3TX (function 1)
+    _U3RXR = 53;                                 // Map U3RX to RP53 (RC5)
+    _RP52R = 0x0001;                            // Map RP52 (RC4) to U3TX (function 1)
     __builtin_write_OSCCONL(OSCCONL & ~0x40);   // Lock PPS
 
     // Configure UART3: 9600 baud, 8N1
@@ -77,13 +81,12 @@ void gps_init(void) {
     gps_data.satellites = 0;
     gps_data.last_update_ms = 0;
 
-    DEBUG_LOG_FLUSH("GPS: UART3 initialized at 9600 baud\r\n");
+    DEBUG_LOG_FLUSH("GPS: UART3 initialized at 9600 baud [Build: ");
+    DEBUG_LOG_FLUSH(gps_build_time);
+    DEBUG_LOG_FLUSH(" ");
+    DEBUG_LOG_FLUSH(gps_build_date);
+    DEBUG_LOG_FLUSH("]\r\n");
     DEBUG_LOG_FLUSH("GPS: U3MODEH=");
-    debug_print_hex((U3MODEH >> 12) & 0xF);
-    debug_print_hex((U3MODEH >> 8) & 0xF);
-    debug_print_hex((U3MODEH >> 4) & 0xF);
-    debug_print_hex(U3MODEH & 0xF);
-    DEBUG_LOG_FLUSH(" U3CONL=");
     debug_print_hex((U3MODEH >> 12) & 0xF);
     debug_print_hex((U3MODEH >> 8) & 0xF);
     debug_print_hex((U3MODEH >> 4) & 0xF);
