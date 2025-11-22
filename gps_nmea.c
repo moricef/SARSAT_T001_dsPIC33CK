@@ -64,10 +64,12 @@ void gps_init(void) {
     // Enable RX interrupt
     IEC3bits.U3RXIE = 1;   // Enable UART3 RX interrupt
 
-    // Enable UART3
+    // Enable UART3 - CRITICAL: UARTEN first, then UTXEN/URXEN
+    U3MODEbits.UARTEN = 1;  // Enable UART FIRST
+    __builtin_nop();
+    __builtin_nop();
     U3MODEbits.UTXEN = 1;   // Enable transmit
     U3MODEbits.URXEN = 1;   // Enable receive
-    U3MODEbits.UARTEN = 1;  // Enable UART
 
     // Initialize GPS data structure
     gps_data.position_valid = 0;
@@ -76,6 +78,17 @@ void gps_init(void) {
     gps_data.last_update_ms = 0;
 
     DEBUG_LOG_FLUSH("GPS: UART3 initialized at 9600 baud\r\n");
+    DEBUG_LOG_FLUSH("GPS: U3MODEH=");
+    debug_print_hex((U3MODEH >> 12) & 0xF);
+    debug_print_hex((U3MODEH >> 8) & 0xF);
+    debug_print_hex((U3MODEH >> 4) & 0xF);
+    debug_print_hex(U3MODEH & 0xF);
+    DEBUG_LOG_FLUSH(" U3CONL=");
+    debug_print_hex((U3MODEH >> 12) & 0xF);
+    debug_print_hex((U3MODEH >> 8) & 0xF);
+    debug_print_hex((U3MODEH >> 4) & 0xF);
+    debug_print_hex(U3MODEH & 0xF);
+    DEBUG_LOG_FLUSH("\r\n");
 }
 
 // =============================
