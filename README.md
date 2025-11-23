@@ -11,6 +11,7 @@ Firmware for COSPAS-SARSAT T.001 emergency beacon using dsPIC33CK64MC105 microco
 - **Modulator**: ADL5375 I/Q modulator
 - **DAC**: Internal 12-bit DAC (RA3 output)
 - **Filter**: 4th order Bessel lowpass 800Hz (2x LM358P Sallen-Key stages)
+- **GPS**: Ublox NEO-6M @ 9600 baud (UART3, RC5/RC4)
 
 ## Signal Chain
 
@@ -103,6 +104,7 @@ MPLAB X IDE with XC-DSC compiler (v3.21 or later).
 - ✅ Breadboard prototype validated
 - ✅ Signal chain optimized (DAC → Bessel filter → ADL5375)
 - ✅ Excellent decoding performance (NFM 403.035-403.040 MHz)
+- ✅ GPS receiver operational (NMEA parsing, position encoding)
 - ⏭️ Next step: PCB design with proper RF layout and ground plane
 
 ## Notes
