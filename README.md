@@ -104,7 +104,8 @@ MPLAB X IDE with XC-DSC compiler (v3.21 or later).
 - ✅ Breadboard prototype validated
 - ✅ Signal chain optimized (DAC → Bessel filter → ADL5375)
 - ✅ Excellent decoding performance (NFM 403.035-403.040 MHz)
-- ✅ GPS receiver operational (NMEA parsing, position encoding)
+- ✅ GPS receiver operational (Ublox NEO-6M, NMEA parsing, position encoding)
+- ✅ GPS UART3 interrupt-driven reception (URXISEL=0b011, FIFO read optimization)
 - ⏭️ Next step: PCB design with proper RF layout and ground plane
 
 ## Notes
