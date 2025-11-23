@@ -68,7 +68,7 @@ void gps_init(void) {
     // Configure interruptions AFTER enabling UART
     IFS3bits.U3RXIF = 0;
     IEC3bits.U3RXIE = 1;
-    IPC14bits.U3RXIP = 7;  // Maximum priority for testing
+    IPC14bits.U3RXIP = 4;  // Priority 5 (lower than Timer1 priority 7 for modulation)
 
     // Double activation like U1
     U3MODEbits.UARTEN = 1;

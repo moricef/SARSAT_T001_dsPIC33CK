@@ -26,10 +26,10 @@ extern const uint32_t adf4351_regs_403mhz[];
 beacon_frame_type_t get_frame_type_from_switch(void) {
     // RB2 = 0 (pull-down) → TEST mode
     // RB2 = 1 (switch pressed) → EXERCISE mode
-    return PORTBbits.RB2 ? BEACON_EXERCISE_FRAME : BEACON_TEST_FRAME;
+    //return PORTBbits.RB2 ? BEACON_EXERCISE_FRAME : BEACON_TEST_FRAME;
 
     // TEMPORARY: Force EXERCISE mode for GPS testing (uncomment to override switch)
-    //return BEACON_EXERCISE_FRAME;
+    return BEACON_EXERCISE_FRAME;
 }
 
 uint8_t should_transmit_beacon(void) {

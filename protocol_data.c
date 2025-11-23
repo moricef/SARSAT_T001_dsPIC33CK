@@ -522,39 +522,88 @@ void build_test_frame(void) {
 // Backward compatibility - Exercise frame
 void build_exercise_frame(void) {
     beacon_mode = BEACON_MODE_EXERCISE;
-    
-    // Build compliant frame with current GPS position
+
+    // Capture GPS data atomically and overwrite globals during frame build
+    double lat_snapshot, lon_snapshot, alt_snapshot;
+    double lat_original, lon_original, alt_original;
+
+    __builtin_disable_interrupts();
+    // Capture current GPS values
+    lat_snapshot = current_latitude;
+    lon_snapshot = current_longitude;
+    alt_snapshot = current_altitude;
+    // Save originals
+    lat_original = current_latitude;
+    lon_original = current_longitude;
+    alt_original = current_altitude;
+    // Overwrite with stable snapshot
+    current_latitude = lat_snapshot;
+    current_longitude = lon_snapshot;
+    current_altitude = alt_snapshot;
+    __builtin_enable_interrupts();
+
+    // Build compliant frame with stable GPS position
     build_compliant_frame();
-    
+
+    // Restore original values atomically
+    __builtin_disable_interrupts();
+    current_latitude = lat_original;
+    current_longitude = lon_original;
+    current_altitude = alt_original;
+    __builtin_enable_interrupts();
+
     rf_set_power_level(RF_POWER_HIGH);
 }
 
 void start_beacon_frame(beacon_frame_type_t frame_type) {
+    DEBUG_LOG_FLUSH("DBG: start_beacon_frame called, type=");
+    DEBUG_LOG_FLUSH(frame_type == BEACON_TEST_FRAME ? "TEST\r\n" : "EXERCISE\r\n");
+
     switch(frame_type) {
         case BEACON_TEST_FRAME:
             build_test_frame();       // TEST mode with fixed coordinates and low power
             set_tx_interval(5000);    // DEBUG: Disabled for scope (50ms forced)
             break;
-            
+
         case BEACON_EXERCISE_FRAME:
+            DEBUG_LOG_FLUSH("DBG: Building EXERCISE frame\r\n");
             build_exercise_frame();   // EXERCISE mode with high power
-            set_tx_interval(50000);   // DEBUG: Disabled for scope (50ms forced)
+            DEBUG_LOG_FLUSH("DBG: EXERCISE frame built\r\n");
+            set_tx_interval(5000);   // DEBUG: Disabled for scope (50ms forced)
             break;
     }
-    
+
     // Validation protocolaire
     //cs_t001_full_compliance_check();
-    
+
+    DEBUG_LOG_FLUSH("DBG: Calling transmit_beacon_frame\r\n");
     // Transmission physique
     transmit_beacon_frame();
+    DEBUG_LOG_FLUSH("DBG: transmit_beacon_frame returned\r\n");
 }
 
 void transmit_beacon_frame(void) {
-	    if (!validate_frame_hardware()) {
-        DEBUG_LOG_FLUSH("ERROR: Invalid frame - transmission aborted\r\n");
+    DEBUG_LOG_FLUSH("DBG: Entering transmit_beacon_frame\r\n");
+
+    if (!validate_frame_hardware()) {
+        DEBUG_LOG_FLUSH("ERROR: Frame validation FAILED - transmission aborted\r\n");
+
+        // Debug BCH mismatch
+        uint64_t pdf1 = get_bit_field_volatile(beacon_frame, 25, 61);
+        uint32_t bch1_calc = compute_bch1(pdf1);
+        uint32_t bch1_recv = (uint32_t)get_bit_field_volatile(beacon_frame, 86, 21);
+
+        DEBUG_LOG_FLUSH("BCH1: calc=0x");
+        debug_print_hex24(bch1_calc);
+        DEBUG_LOG_FLUSH(" recv=0x");
+        debug_print_hex24(bch1_recv);
+        DEBUG_LOG_FLUSH("\r\n");
+
         return;
     }
-    
+
+    DEBUG_LOG_FLUSH("DBG: Frame validated OK\r\n");
+
     // Copie atomique vers le buffer RF et démarrage transmission
     __builtin_disable_interrupts();
     start_transmission(beacon_frame); // Défini dans system_comms.c
