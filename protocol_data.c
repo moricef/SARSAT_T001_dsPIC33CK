@@ -21,6 +21,7 @@ volatile uint8_t gps_updated = 0;
 double current_latitude = TEST_LATITUDE;
 double current_longitude = TEST_LONGITUDE;
 double current_altitude = TEST_ALTITUDE;
+volatile uint8_t gps_data_locked = 0;  // Lock for GPS data access
 uint8_t beacon_mode = BEACON_MODE_EXERCISE;
 
 // =============================
@@ -526,23 +527,22 @@ void build_exercise_frame(void) {
     // CRITICAL SECTION: Protect shared GPS variables from race condition
     //
     // Problem: current_latitude/longitude/altitude are 64-bit doubles
-    // written by GPS ISR (via gps_update in main loop) and read by
-    // build_compliant_frame(). Without protection, GPS data can change
-    // mid-read, causing BCH validation failure.
+    // written by gps_update() (main loop) and read by build_compliant_frame().
+    // Without protection, GPS data can change mid-read, causing BCH failure.
     //
-    // Solution: Disable GPS ISR during frame construction (~50-100 µs)
-    // UART3 FIFO (4 chars = 4.16 ms @ 9600 baud) buffers incoming data.
-    // No data loss occurs.
+    // Solution: Use lock flag to prevent GPS data updates during frame build.
+    // gps_update() will skip writing if gps_data_locked == 1.
+    // This is cleaner than disabling ISR entirely.
     //
     // See ISR_CONFLICTS.md for detailed analysis.
 
-    IEC3bits.U3RXIE = 0;  // Disable GPS UART3 RX interrupt
+    gps_data_locked = 1;  // Signal: don't update GPS data
 
     // Build compliant frame with stable GPS position
-    // Safe: current_latitude/longitude/altitude won't change during execution
+    // Safe: gps_update() won't modify current_latitude/longitude/altitude
     build_compliant_frame();
 
-    IEC3bits.U3RXIE = 1;  // Re-enable GPS interrupt
+    gps_data_locked = 0;  // Allow GPS updates again
 
     rf_set_power_level(RF_POWER_HIGH);
 }

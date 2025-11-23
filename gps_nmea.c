@@ -187,6 +187,12 @@ void gps_parse_gga(const char *sentence) {
         return;
     }
 
+    // Check if GPS data is locked (being read by frame construction)
+    extern volatile uint8_t gps_data_locked;
+    if (gps_data_locked) {
+        return;  // Skip update - data is being read
+    }
+
     // Tokenize sentence
     char buffer[GPS_NMEA_MAX_LENGTH];
     strncpy(buffer, sentence, GPS_NMEA_MAX_LENGTH - 1);
@@ -239,6 +245,12 @@ void gps_parse_gga(const char *sentence) {
 void gps_parse_rmc(const char *sentence) {
     if (!sentence || !gps_validate_checksum(sentence)) {
         return;
+    }
+
+    // Check if GPS data is locked (being read by frame construction)
+    extern volatile uint8_t gps_data_locked;
+    if (gps_data_locked) {
+        return;  // Skip update - data is being read
     }
 
     // Tokenize sentence
