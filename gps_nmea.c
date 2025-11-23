@@ -112,17 +112,19 @@ void gps_init(void) {
 void __attribute__((interrupt, auto_psv)) _U3RXInterrupt(void) {
     gps_irq_count++;
 
-    // Simple like UART1: read ONE character per interrupt
-    uint8_t next_head = (gps_rx_head + 1) % GPS_BUFFER_SIZE;
+    // Read ALL available characters from FIFO (up to 4 with URXISEL=0b011)
+    while (U3STAHbits.URXBE == 0) {  // While data available
+        uint8_t next_head = (gps_rx_head + 1) % GPS_BUFFER_SIZE;
 
-    if (next_head == gps_rx_tail) {
-        // Buffer full - discard
-        volatile uint8_t dummy = U3RXREG;
-        (void)dummy;
-    } else {
-        gps_rx_buffer[gps_rx_head] = U3RXREG;
-        gps_rx_head = next_head;
-        gps_rx_count++;
+        if (next_head == gps_rx_tail) {
+            // Buffer full - discard
+            volatile uint8_t dummy = U3RXREG;
+            (void)dummy;
+        } else {
+            gps_rx_buffer[gps_rx_head] = U3RXREG;
+            gps_rx_head = next_head;
+            gps_rx_count++;
+        }
     }
 
     IFS3bits.U3RXIF = 0;
