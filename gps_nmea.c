@@ -69,6 +69,7 @@ void gps_init(void) {
     // Configure interruptions AFTER enabling UART (like U1)
     IFS3bits.U3RXIF = 0;
     IEC3bits.U3RXIE = 1;
+    IPC14bits.U3RXIP = 4;
 
     // Double activation like U1
     U3MODEbits.UARTEN = 1;
