@@ -122,16 +122,12 @@ int main(void) {
         if (should_transmit_beacon()) {
             beacon_frame_type_t current_frame_type = get_frame_type_from_switch();
 
-            // Print GPS status if available
+            // Print GPS status if available (simplified to avoid timing issues)
             if (gps_has_fix()) {
-                DEBUG_LOG_FLUSH("GPS Fix: ");
                 const gps_data_t *gps = gps_get_data();
+                DEBUG_LOG_FLUSH("GPS Fix: ");
                 debug_print_uint16(gps->satellites);
-                DEBUG_LOG_FLUSH(" sats, Pos: ");
-                debug_print_float(gps->latitude, 6);
-                DEBUG_LOG_FLUSH(", ");
-                debug_print_float(gps->longitude, 6);
-                DEBUG_LOG_FLUSH("\r\n");
+                DEBUG_LOG_FLUSH(" sats\r\n");
             }
 
             DEBUG_LOG_FLUSH("Starting periodic transmission - Mode: ");
