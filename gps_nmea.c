@@ -45,12 +45,7 @@ void gps_init(void) {
     TRISCbits.TRISC5 = 1;       // RC5 as input (U3RX)
     TRISCbits.TRISC4 = 0;       // RC4 as output (U3TX)
     // Note: RC4 and RC5 are digital-only pins, no ANSEL configuration needed
-
-    // Configure PPS (Peripheral Pin Select) for UART3
-    __builtin_write_OSCCONL(OSCCONL | 0x40);    // Unlock PPS
-    _U3RXR = 53;                                 // Map U3RX to RP53 (RC5)
-    _RP52R = 0x0003;                            // Map RP52 (RC4) to U3TX (function 1)
-    __builtin_write_OSCCONL(OSCCONL & ~0x40);   // Lock PPS
+    // Note: PPS configuration is done centrally in init_all_pps()
 
     // Configure UART3: 9600 baud, 8N1
     // Baud rate calculation: BRG = (Fcy / (16 * BaudRate)) - 1
@@ -61,7 +56,9 @@ void gps_init(void) {
     U3MODEbits.BRGH = 0;    // Standard speed mode
 
     // Configure RX interrupt mode
-    U3STAHbits.URXISEL = 0; // Interrupt when any character received
+    // URXISEL: 000=IRQ when 1 char, 001=2 chars, 010=3 chars, 011=4 chars
+    // Try different values - on dsPIC33CK URXISEL meanings may differ
+    U3STAHbits.URXISEL = 0b011; // Interrupt when RX buffer is 3/4 full (4 chars)
 
     // Enable UART3
     U3MODEbits.UARTEN = 1;
@@ -71,7 +68,7 @@ void gps_init(void) {
     // Configure interruptions AFTER enabling UART
     IFS3bits.U3RXIF = 0;
     IEC3bits.U3RXIE = 1;
-    IPC14bits.U3RXIP = 4;
+    IPC14bits.U3RXIP = 7;  // Maximum priority for testing
 
     // Double activation like U1
     U3MODEbits.UARTEN = 1;
@@ -115,30 +112,17 @@ void gps_init(void) {
 void __attribute__((interrupt, auto_psv)) _U3RXInterrupt(void) {
     gps_irq_count++;
 
-    // Check and clear overrun error
-    if (U3STAbits.OERR) {
-        gps_oerr_count++;
-        U3STAbits.OERR = 0;  // Clear overrun error
-        // Discard any data in buffer when overrun occurs
-        while (U3STAHbits.URXBF) {
-            volatile uint8_t dummy = U3RXREG;
-            (void)dummy;
-        }
-    }
+    // Simple like UART1: read ONE character per interrupt
+    uint8_t next_head = (gps_rx_head + 1) % GPS_BUFFER_SIZE;
 
-    // Check if data is available
-    if (U3STAHbits.URXBF) {
-        uint8_t next_head = (gps_rx_head + 1) % GPS_BUFFER_SIZE;
-
-        if (next_head == gps_rx_tail) {
-            // Buffer full - discard data
-            volatile uint8_t dummy = U3RXREG;
-            (void)dummy;
-        } else {
-            gps_rx_buffer[gps_rx_head] = U3RXREG & 0xFF;
-            gps_rx_head = next_head;
-            gps_rx_count++;
-        }
+    if (next_head == gps_rx_tail) {
+        // Buffer full - discard
+        volatile uint8_t dummy = U3RXREG;
+        (void)dummy;
+    } else {
+        gps_rx_buffer[gps_rx_head] = U3RXREG;
+        gps_rx_head = next_head;
+        gps_rx_count++;
     }
 
     IFS3bits.U3RXIF = 0;

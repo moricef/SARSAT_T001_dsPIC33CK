@@ -43,13 +43,8 @@ static void adf4351_init_hardware_spi(void) {
     TRISCbits.TRISC0 = 0;   // SDO output
     TRISCbits.TRISC2 = 0;   // SCK output
     TRISCbits.TRISC3 = 0;   // LE output
-    
-    // PPS Configuration
-    __builtin_write_RPCON(0x0000);
-    RPOR8bits.RP48R = 5;   // SDO1 on RC0
-    RPOR9bits.RP50R = 6;   // SCK1 on RC2
-    __builtin_write_RPCON(0x0800);
-    
+    // Note: PPS configuration is done centrally in init_all_pps()
+
     // SPI Configuration
     SPI1CON1L = 0x0020;     // MSTEN=1 only
     SPI1CON1Lbits.CKE = 1;  // CPHA=0 for ADF4351

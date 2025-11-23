@@ -75,6 +75,29 @@ void init_clock(void) {
 }
 
 // =============================
+// PPS (Peripheral Pin Select) Centralized Configuration
+// =============================
+void init_all_pps(void) {
+    // Unlock PPS - ONLY ONCE for all peripherals
+    __builtin_write_RPCON(0x0000);
+
+    // ===== SPI1 (RF - ADF4351) =====
+    RPOR8bits.RP48R = 5;   // SDO1 on RC0 (RP48)
+    RPOR9bits.RP50R = 6;   // SCK1 on RC2 (RP50)
+
+    // ===== UART2 (Debug) =====
+    _RP58R = 0x0003;       // U2TX on RC10 (RP58) - OUTPUT (function 3)
+    _U2RXR = 59;           // U2RX on RC11 (RP59) - INPUT
+
+    // ===== UART3 (GPS) =====
+    _U3RXR = 53;           // U3RX on RC5 (RP53) - INPUT
+    _RP52R = 0x0003;       // U3TX on RC4 (RP52) - OUTPUT (function 3)
+
+    // Lock PPS - ONLY ONCE after all configurations
+    __builtin_write_RPCON(0x0800);
+}
+
+// =============================
 // GPIO Initialization
 // =============================
 void init_gpio(void) {
@@ -357,6 +380,7 @@ void set_tx_interval(uint32_t interval_ms) {
 void system_init(void) {
     init_clock();
     init_gpio();
+    init_all_pps();              // Configure ALL PPS mappings ONCE
     init_dac();
     init_comm_uart();
 

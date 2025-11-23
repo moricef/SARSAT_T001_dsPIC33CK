@@ -143,14 +143,10 @@ void init_debug_uart(void) {
     // 3. Configuration BRG identique au test
     U2MODEbits.BRGH = 1;
     U2BRG = (FCY / (4 * DEBUG_BAUD_RATE)) - 1;
-    
-    // 4. Configuration PPS EXACTEMENT comme le test
-    __builtin_write_OSCCONL(OSCCONL | 0x40);  // Deverrouiller PPS
-    _RP58R = 0x0003;   // U2TX sur RP58 (RC10) - valeur 3
-    _U2RXR = 59;       // U2RX sur RP59 (RC11) - valeur 59
-    __builtin_write_OSCCONL(OSCCONL & ~0x40); // Verrouiller PPS
-    
-    // 5. Configuration broches physique
+
+    // Note: PPS configuration is done centrally in init_all_pps()
+
+    // 4. Configuration broches physique
     TRISCbits.TRISC10 = 0;  // TX (RC10) en sortie
     TRISCbits.TRISC11 = 1;  // RX (RC11) en entree
     LATCbits.LATC10 = 1;    // etat inactif HIGH

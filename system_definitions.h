@@ -37,6 +37,7 @@
 // =============================
 // Function Prototypes
 // =============================
+void init_all_pps(void);         // Centralized PPS configuration
 void system_init(void);
 void full_error_diagnostic(void);
 float read_pll_deviation(void);
