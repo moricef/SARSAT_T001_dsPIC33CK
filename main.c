@@ -145,6 +145,12 @@ int main(void) {
             DEBUG_LOG_FLUSH(" gps_rx=");
             extern volatile uint16_t gps_rx_count;
             debug_print_uint16(gps_rx_count);
+            DEBUG_LOG_FLUSH(" gps_irq=");
+            extern volatile uint16_t gps_irq_count;
+            debug_print_uint16(gps_irq_count);
+            DEBUG_LOG_FLUSH(" gps_oerr=");
+            extern volatile uint16_t gps_oerr_count;
+            debug_print_uint16(gps_oerr_count);
             DEBUG_LOG_FLUSH("\r\n");
         }
         

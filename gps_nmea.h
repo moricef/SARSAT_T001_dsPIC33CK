@@ -7,7 +7,7 @@
 // =============================
 // GPS NMEA Configuration
 // =============================
-// Hardware: UART3 on RC4 (U3RX/RP52) and RC5 (U3TX/RP53)
+// Hardware: UART3 on RC4 (U3TX/RP52) and RC5 (U3RX/RP53)
 // Baud rate: 9600 baud (standard NMEA)
 #define GPS_NMEA_MAX_LENGTH     82      // Maximum NMEA sentence length
 #define GPS_BUFFER_SIZE         96      // RX buffer size

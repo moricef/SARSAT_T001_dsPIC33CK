@@ -1,3 +1,4 @@
+#include "includes.h"       // For FCY definition
 #include "gps_nmea.h"
 #include "system_debug.h"
 #include "protocol_data.h"
@@ -23,6 +24,8 @@ static uint8_t nmea_index = 0;
 // GPS debug mode
 volatile uint8_t gps_debug_raw = 1;  // 0=off, 1=print raw NMEA sentences (AUTO ON)
 volatile uint16_t gps_rx_count = 0;  // Count of chars received from GPS
+volatile uint16_t gps_irq_count = 0;  // Count of interrupt calls
+volatile uint16_t gps_oerr_count = 0; // Count of overrun errors
 
 // =============================
 // UART3 Initialization (GPS)
@@ -51,8 +54,7 @@ void gps_init(void) {
 
     // Configure UART3: 9600 baud, 8N1
     // Baud rate calculation: BRG = (Fcy / (16 * BaudRate)) - 1
-    // For Fcy = 100 MHz, BaudRate = 9600: BRG = 651
-    U3BRG = 651;  // Adjust based on your Fcy
+    U3BRG = (FCY / (16UL * 9600)) - 1;  // Auto-calculated for current Fcy
 
     // UART Mode: 8-bit data, no parity, 1 stop bit
     U3MODEbits.MOD = 0;     // Asynchronous 8-bit UART
@@ -61,12 +63,12 @@ void gps_init(void) {
     // Configure RX interrupt mode
     U3STAHbits.URXISEL = 0; // Interrupt when any character received
 
-    // Enable UART3 - CRITICAL: UARTEN first, then UTXEN/URXEN (like U1)
+    // Enable UART3
     U3MODEbits.UARTEN = 1;
     U3MODEbits.UTXEN = 1;
     U3MODEbits.URXEN = 1;
 
-    // Configure interruptions AFTER enabling UART (like U1)
+    // Configure interruptions AFTER enabling UART
     IFS3bits.U3RXIF = 0;
     IEC3bits.U3RXIE = 1;
     IPC14bits.U3RXIP = 4;
@@ -86,7 +88,9 @@ void gps_init(void) {
     DEBUG_LOG_FLUSH(gps_build_time);
     DEBUG_LOG_FLUSH(" ");
     DEBUG_LOG_FLUSH(gps_build_date);
-    DEBUG_LOG_FLUSH("]\r\n");
+    DEBUG_LOG_FLUSH("] U3BRG=");
+    debug_print_uint16(U3BRG);
+    DEBUG_LOG_FLUSH("\r\n");
     DEBUG_LOG_FLUSH("GPS: U3MODE=");
     debug_print_hex((U3MODE >> 12) & 0xF);
     debug_print_hex((U3MODE >> 8) & 0xF);
@@ -109,23 +113,35 @@ void gps_init(void) {
 // UART3 RX Interrupt Handler
 // =============================
 void __attribute__((interrupt, auto_psv)) _U3RXInterrupt(void) {
-    // Clear interrupt flag
-    IFS3bits.U3RXIF = 0;
+    gps_irq_count++;
 
-    // Read all available data
-    while (U3STAHbits.URXBE == 0) {  // While RX buffer not empty
-        uint8_t data = U3RXREG & 0xFF;
-
-        gps_rx_count++;  // Count received chars
-
-        // Store in circular buffer
-        uint8_t next_head = (gps_rx_head + 1) % GPS_BUFFER_SIZE;
-        if (next_head != gps_rx_tail) {
-            gps_rx_buffer[gps_rx_head] = data;
-            gps_rx_head = next_head;
+    // Check and clear overrun error
+    if (U3STAbits.OERR) {
+        gps_oerr_count++;
+        U3STAbits.OERR = 0;  // Clear overrun error
+        // Discard any data in buffer when overrun occurs
+        while (U3STAHbits.URXBF) {
+            volatile uint8_t dummy = U3RXREG;
+            (void)dummy;
         }
-        // else: buffer overflow, drop data
     }
+
+    // Check if data is available
+    if (U3STAHbits.URXBF) {
+        uint8_t next_head = (gps_rx_head + 1) % GPS_BUFFER_SIZE;
+
+        if (next_head == gps_rx_tail) {
+            // Buffer full - discard data
+            volatile uint8_t dummy = U3RXREG;
+            (void)dummy;
+        } else {
+            gps_rx_buffer[gps_rx_head] = U3RXREG & 0xFF;
+            gps_rx_head = next_head;
+            gps_rx_count++;
+        }
+    }
+
+    IFS3bits.U3RXIF = 0;
 }
 
 // =============================
