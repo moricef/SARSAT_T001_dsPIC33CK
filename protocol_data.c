@@ -540,11 +540,19 @@ void build_test_frame(void) {
 void build_exercise_frame(void) {
     beacon_mode = BEACON_MODE_EXERCISE;
 
-    // GPS data protection via atomic writes in gps_nmea.c
-    // build_compliant_frame() does atomic snapshot of GPS variables
-    // No flag needed - direct atomic operations prevent TOCTOU races
+    // DEFENSE IN DEPTH: Disable GPS UART ISR during frame construction
+    // Option B (atomic writes) eliminates TOCTOU races
+    // Option A (disable ISR) eliminates ALL GPS activity during critical section
+    // Combined: Maximum protection with deterministic timing
+    //
+    // GPS FIFO = 4 chars, construction ~0.5ms, GPS rate = 1 char/ms
+    // → No character loss (4ms margin)
+
+    IEC3bits.U3RXIE = 0;  // Disable GPS UART3 RX interrupt
 
     build_compliant_frame();
+
+    IEC3bits.U3RXIE = 1;  // Re-enable GPS interrupt
 
     rf_set_power_level(RF_POWER_HIGH);
 }
