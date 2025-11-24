@@ -326,11 +326,13 @@ uint8_t gps_update(void) {
             if (c == '\n') {
                 nmea_sentence[nmea_index] = '\0';
 
-                // Debug: print raw NMEA sentence
+                // Debug: print raw NMEA sentence (filter: only GPGGA/GNGGA)
                 if (gps_debug_raw) {
-                    DEBUG_LOG_FLUSH("NMEA: ");
-                    DEBUG_LOG_FLUSH(nmea_sentence);
-                    DEBUG_LOG_FLUSH("\r\n");
+                    if (strstr(nmea_sentence, "$GPGGA") || strstr(nmea_sentence, "$GNGGA")) {
+                        DEBUG_LOG_FLUSH("NMEA: ");
+                        DEBUG_LOG_FLUSH(nmea_sentence);
+                        DEBUG_LOG_FLUSH("\r\n");
+                    }
                 }
 
                 // Parse sentence
