@@ -540,24 +540,32 @@ void build_test_frame(void) {
 void build_exercise_frame(void) {
     beacon_mode = BEACON_MODE_EXERCISE;
 
-    // DEFENSE IN DEPTH: Disable GPS UART ISR during frame construction
-    // Option B (atomic writes) eliminates TOCTOU races
-    // Option A (disable ISR) eliminates ALL GPS activity during critical section
-    // Combined: Maximum protection with deterministic timing
-    //
-    // GPS FIFO = 4 chars, construction ~0.5ms, GPS rate = 1 char/ms
-    // → No character loss (4ms margin)
-
-    IEC3bits.U3RXIE = 0;  // Disable GPS UART3 RX interrupt
-
+    // Build frame (GPS ISR protection moved to start_beacon_frame)
     build_compliant_frame();
-
-    IEC3bits.U3RXIE = 1;  // Re-enable GPS interrupt
 
     rf_set_power_level(RF_POWER_HIGH);
 }
 
 void start_beacon_frame(beacon_frame_type_t frame_type) {
+    // CRITICAL SECTION: Disable GPS ISR for EXERCISE mode during entire TX sequence
+    // Prevents GPS data changes between frame construction, validation, and transmission
+    //
+    // Problem discovered: GPS ISR was re-enabled after build_exercise_frame(),
+    // but BEFORE validate_frame_hardware(), causing BCH mismatch when GPS updates
+    // arrived between construction and validation.
+    //
+    // Solution: Keep GPS ISR disabled from construction through validation until
+    // after start_transmission() updates last_tx_time.
+    //
+    // GPS FIFO = 4 chars, total time ~2ms, GPS rate = 1 char/ms → No loss
+
+    uint8_t gps_was_disabled = 0;
+
+    if (frame_type == BEACON_EXERCISE_FRAME) {
+        IEC3bits.U3RXIE = 0;  // Disable GPS UART3 RX interrupt
+        gps_was_disabled = 1;
+    }
+
     switch(frame_type) {
         case BEACON_TEST_FRAME:
             build_test_frame();       // TEST mode with fixed coordinates and low power
@@ -566,7 +574,7 @@ void start_beacon_frame(beacon_frame_type_t frame_type) {
 
         case BEACON_EXERCISE_FRAME:
             build_exercise_frame();   // EXERCISE mode with high power
-            set_tx_interval(5000);    // 5s interval for testing
+            set_tx_interval(15000);    // 15s interval for testing
             break;
     }
 
@@ -575,6 +583,11 @@ void start_beacon_frame(beacon_frame_type_t frame_type) {
 
     // Transmission physique
     transmit_beacon_frame();
+
+    // Re-enable GPS ISR after transmission started (last_tx_time updated)
+    if (gps_was_disabled) {
+        IEC3bits.U3RXIE = 1;  // Re-enable GPS interrupt
+    }
 }
 
 void transmit_beacon_frame(void) {
