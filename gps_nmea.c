@@ -187,12 +187,6 @@ void gps_parse_gga(const char *sentence) {
         return;
     }
 
-    // Check if GPS data is locked (being read by frame construction)
-    extern volatile uint8_t gps_data_locked;
-    if (gps_data_locked) {
-        return;  // Skip update - data is being read
-    }
-
     // Tokenize sentence
     char buffer[GPS_NMEA_MAX_LENGTH];
     strncpy(buffer, sentence, GPS_NMEA_MAX_LENGTH - 1);
@@ -222,8 +216,12 @@ void gps_parse_gga(const char *sentence) {
         uint8_t satellites = atoi(fields[7]);
         uint16_t hdop_x10 = (uint16_t)(atof(fields[8]) * 10.0);
 
-        // Update GPS data structure
+        // ATOMIC UPDATE: Write GPS data directly to shared variables
+        // This eliminates TOCTOU race conditions by writing immediately after parsing
+        // No flag needed - atomic section guarantees consistency
         __builtin_disable_interrupts();
+
+        // Update local GPS data structure
         gps_data.latitude = latitude;
         gps_data.longitude = longitude;
         gps_data.altitude = altitude;
@@ -233,8 +231,17 @@ void gps_parse_gga(const char *sentence) {
         gps_data.position_valid = 1;
         gps_data.last_update_ms = millis_counter;
 
-        // Update global GPS variables for protocol_data.c
-        set_gps_position(latitude, longitude, altitude);
+        // Direct atomic write to shared variables (used by protocol_data.c)
+        extern volatile double current_latitude;
+        extern volatile double current_longitude;
+        extern volatile double current_altitude;
+        extern volatile uint8_t gps_updated;
+
+        current_latitude = latitude;
+        current_longitude = longitude;
+        current_altitude = altitude;
+        gps_updated = 1;
+
         __builtin_enable_interrupts();
     }
 }
@@ -245,12 +252,6 @@ void gps_parse_gga(const char *sentence) {
 void gps_parse_rmc(const char *sentence) {
     if (!sentence || !gps_validate_checksum(sentence)) {
         return;
-    }
-
-    // Check if GPS data is locked (being read by frame construction)
-    extern volatile uint8_t gps_data_locked;
-    if (gps_data_locked) {
-        return;  // Skip update - data is being read
     }
 
     // Tokenize sentence
@@ -279,15 +280,26 @@ void gps_parse_rmc(const char *sentence) {
         double latitude = parse_coordinate(fields[3], fields[4]);
         double longitude = parse_coordinate(fields[5], fields[6]);
 
-        // Update GPS data structure
+        // ATOMIC UPDATE: Write GPS data directly to shared variables
         __builtin_disable_interrupts();
+
+        // Update local GPS data structure
         gps_data.latitude = latitude;
         gps_data.longitude = longitude;
         gps_data.position_valid = 1;
         gps_data.last_update_ms = millis_counter;
 
-        // Update global GPS variables
-        set_gps_position(latitude, longitude, gps_data.altitude);
+        // Direct atomic write to shared variables (RMC doesn't provide altitude)
+        extern volatile double current_latitude;
+        extern volatile double current_longitude;
+        extern volatile double current_altitude;
+        extern volatile uint8_t gps_updated;
+
+        current_latitude = latitude;
+        current_longitude = longitude;
+        // Keep existing altitude (RMC sentence doesn't include it)
+        gps_updated = 1;
+
         __builtin_enable_interrupts();
     }
 }

@@ -21,7 +21,6 @@ volatile uint8_t gps_updated = 0;
 volatile double current_latitude = TEST_LATITUDE;
 volatile double current_longitude = TEST_LONGITUDE;
 volatile double current_altitude = TEST_ALTITUDE;
-volatile uint8_t gps_data_locked = 0;  // Lock for GPS data access
 uint8_t beacon_mode = BEACON_MODE_EXERCISE;
 
 // =============================
@@ -91,11 +90,8 @@ uint64_t get_bit_field_volatile(volatile const uint8_t *frame, uint16_t cs_start
 // =============================
 
 void set_gps_position(double lat, double lon, double alt) {
-    // Respect lock flag - don't update if data is being read
-    if (gps_data_locked) {
-        return;  // Skip update - frame construction in progress
-    }
-
+    // Direct write - used only for TEST mode with fixed coordinates
+    // GPS parsing writes directly with atomic protection in gps_nmea.c
     current_latitude = lat;
     current_longitude = lon;
     current_altitude = alt;
@@ -544,25 +540,11 @@ void build_test_frame(void) {
 void build_exercise_frame(void) {
     beacon_mode = BEACON_MODE_EXERCISE;
 
-    // CRITICAL SECTION: Protect shared GPS variables from race condition
-    //
-    // Problem: current_latitude/longitude/altitude are 64-bit doubles
-    // written by gps_update() (main loop) and read by build_compliant_frame().
-    // Without protection, GPS data can change mid-read, causing BCH failure.
-    //
-    // Solution: Use lock flag to prevent GPS data updates during frame build.
-    // gps_update() will skip writing if gps_data_locked == 1.
-    // This is cleaner than disabling ISR entirely.
-    //
-    // See ISR_CONFLICTS.md for detailed analysis.
+    // GPS data protection via atomic writes in gps_nmea.c
+    // build_compliant_frame() does atomic snapshot of GPS variables
+    // No flag needed - direct atomic operations prevent TOCTOU races
 
-    gps_data_locked = 1;  // Signal: don't update GPS data
-
-    // Build compliant frame with stable GPS position
-    // Safe: gps_update() won't modify current_latitude/longitude/altitude
     build_compliant_frame();
-
-    gps_data_locked = 0;  // Allow GPS updates again
 
     rf_set_power_level(RF_POWER_HIGH);
 }
