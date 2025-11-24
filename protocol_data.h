@@ -207,9 +207,9 @@ void start_beacon_frame(beacon_frame_type_t frame_type);
 extern uint8_t frame[MESSAGE_BITS];
 extern volatile uint8_t gps_updated;
 extern volatile uint8_t gps_data_locked;  // Lock flag: 1 = reading in progress, don't write
-extern double current_latitude;
-extern double current_longitude;
-extern double current_altitude;
+extern volatile double current_latitude;
+extern volatile double current_longitude;
+extern volatile double current_altitude;
 
 // =============================
 // Convenience Macros for Frame Fields

@@ -18,9 +18,9 @@ extern void rf_stop_transmission(void);
 // =============================
 uint8_t frame[MESSAGE_BITS];
 volatile uint8_t gps_updated = 0;
-double current_latitude = TEST_LATITUDE;
-double current_longitude = TEST_LONGITUDE;
-double current_altitude = TEST_ALTITUDE;
+volatile double current_latitude = TEST_LATITUDE;
+volatile double current_longitude = TEST_LONGITUDE;
+volatile double current_altitude = TEST_ALTITUDE;
 volatile uint8_t gps_data_locked = 0;  // Lock for GPS data access
 uint8_t beacon_mode = BEACON_MODE_EXERCISE;
 
@@ -91,6 +91,11 @@ uint64_t get_bit_field_volatile(volatile const uint8_t *frame, uint16_t cs_start
 // =============================
 
 void set_gps_position(double lat, double lon, double alt) {
+    // Respect lock flag - don't update if data is being read
+    if (gps_data_locked) {
+        return;  // Skip update - frame construction in progress
+    }
+
     current_latitude = lat;
     current_longitude = lon;
     current_altitude = alt;
@@ -418,58 +423,68 @@ uint8_t altitude_to_code(double altitude) {
 void build_compliant_frame(void) {
     // Local frame buffer - dsPIC33CK stack optimization
     uint8_t frame[MESSAGE_BITS];
-    
+
     // Fast zero initialization
     memset(frame, 0, MESSAGE_BITS);
-    
+
+    // ATOMIC GPS SNAPSHOT: Read all 3 GPS values atomically to ensure consistency
+    // Even with gps_data_locked flag, doing an atomic read guarantees the 3 values
+    // are from the same GPS update (not latitude from update N, longitude from N+1)
+    double lat_snapshot, lon_snapshot, alt_snapshot;
+    __builtin_disable_interrupts();
+    lat_snapshot = current_latitude;
+    lon_snapshot = current_longitude;
+    alt_snapshot = current_altitude;
+    __builtin_enable_interrupts();
+
     // Message de construction unique
     if (!debug_flags.build_msg_printed) {
         debug_flags.build_msg_printed = 1;
         DEBUG_LOG_FLUSH("Building CS-T001 compliant frame...\r\n");
-         
+
     }
-    
+
     // CS-T001 frame construction - bit-exact
     set_bit_field(frame, FRAME_PREAMBLE_START, FRAME_PREAMBLE_LENGTH, 0x7FFFUL);
-    
+
     // Sync pattern selection
     uint16_t sync_pattern = (beacon_mode == BEACON_MODE_TEST) ? SYNC_SELF_TEST : SYNC_NORMAL_LONG;
     set_bit_field(frame, FRAME_SYNC_START, FRAME_SYNC_LENGTH, sync_pattern);
-    
+
     // Format and protocol flags
     set_bit_field(frame, FRAME_FORMAT_FLAG_BIT, 1, 1UL);
     set_bit_field(frame, FRAME_PROTOCOL_FLAG_BIT, 1, 0UL);
-    
+
     // Country and protocol codes
     set_bit_field(frame, FRAME_COUNTRY_START, FRAME_COUNTRY_LENGTH, COUNTRY_CODE_FRANCE);
     set_bit_field(frame, FRAME_PROTOCOL_START, FRAME_PROTOCOL_LENGTH, PROTOCOL_ELT_DT);
-    
+
     // Beacon ID (example - replace with actual ID)
     set_bit_field(frame, FRAME_BEACON_ID_START, FRAME_BEACON_ID_LENGTH, 0x123456UL);
-    
-    // GPS position encoding
-    cs_gps_position_t gps_pos = encode_gps_position_complete(current_latitude, current_longitude);
+
+    // GPS position encoding - use atomic snapshots
+    cs_gps_position_t gps_pos = encode_gps_position_complete(lat_snapshot, lon_snapshot);
     set_bit_field(frame, FRAME_POSITION_START, FRAME_POSITION_LENGTH, gps_pos.fine_position_19bit);
     // DEBUG CRITIQUE
     if(!debug_flags.gps_encoding_printed) {
         DEBUG_LOG_FLUSH("GPS FINE POS: 0x");
-         
+
         debug_print_hex24(gps_pos.fine_position_19bit);
         DEBUG_LOG_FLUSH("\r\n");
         debug_flags.gps_encoding_printed = 1;
     }
-    
+
     // BCH1 calculation - CS-T001 compliant
     uint64_t pdf1_data = get_bit_field(frame, 25, 61);
     uint32_t bch1 = compute_bch1(pdf1_data);
     set_bit_field(frame, FRAME_BCH1_START, FRAME_BCH1_LENGTH, bch1);
-       
+
     // PDF-2 additional data
     set_bit_field(frame, FRAME_ACTIVATION_START, FRAME_ACTIVATION_LENGTH, 0x0UL);
-    
-    uint8_t alt_code = altitude_to_code(current_altitude);
+
+    uint8_t alt_code = altitude_to_code(alt_snapshot);
     set_bit_field(frame, FRAME_ALTITUDE_START, FRAME_ALTITUDE_LENGTH, alt_code);
-    
+
     set_bit_field(frame, FRAME_FRESHNESS_START, FRAME_FRESHNESS_LENGTH, 0x2UL);
     set_bit_field(frame, FRAME_OFFSET_START, FRAME_OFFSET_LENGTH, gps_pos.offset_position_18bit);
     
@@ -496,8 +511,13 @@ void build_compliant_frame(void) {
         }
     }
 
-    // Fast copy to global buffer - dsPIC33CK optimized
+    // CRITICAL SECTION: Protect beacon_frame[] write from Timer1 ISR (Conflict #2)
+    // Timer1 ISR (priority 7) reads beacon_frame[] during modulation at 6400 Hz.
+    // Without protection, ISR could read partially-written frame during memcpy().
+    // Solution: Disable all interrupts during the copy to ensure atomic write.
+    __builtin_disable_interrupts();
     memcpy((void*)beacon_frame, frame, MESSAGE_BITS);
+    __builtin_enable_interrupts();
 
     // Single comprehensive log
     debug_print_complete_frame_info(1);
