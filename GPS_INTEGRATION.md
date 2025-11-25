@@ -1,7 +1,7 @@
 # GPS NMEA Integration for dsPIC33CK T.001 Beacon
 
-⚠️ **STATUS: NOT TESTED WITH REAL GPS HARDWARE** ⚠️
-This implementation compiles successfully but has not been validated with actual GPS hardware. Testing with a physical GPS module is required before production use.
+✅ **STATUS: VALIDATED WITH REAL GPS HARDWARE** ✅
+This implementation has been fully tested and validated with Ublox NEO-6M GPS receiver. Real-time GPS coordinate transmission is operational.
 
 ## 📡 Overview
 
@@ -16,25 +16,25 @@ This document describes the GPS NMEA integration for the dsPIC33CK-based COSPAS-
 
 ### GPS Module Connection
 Connect an NMEA-compatible GPS module to UART3:
-- **GPS TX** → **RC4 (RP52)** - dsPIC33CK U3RX
-- **GPS RX** → **RC5 (RP53)** - dsPIC33CK U3TX (optional, not used for receive-only)
+- **GPS TX** → **RC5 (RP53)** - dsPIC33CK U3RX ✅ **VALIDATED**
+- **GPS RX** → **RC4 (RP52)** - dsPIC33CK U3TX (optional, not used for receive-only)
 - **GPS VCC** → **3.3V or 5V** (depending on module)
 - **GPS GND** → **GND**
+
+**Note**: Pin mapping was corrected from initial implementation (RC4/RC5 were swapped).
 
 ### Pin Configuration (Already Configured in gps_nmea.c)
 The GPS module automatically configures the PPS registers:
 
 ```c
-// GPIO Configuration
-TRISCbits.TRISC4 = 1;       // RC4 as input (U3RX)
-TRISCbits.TRISC5 = 0;       // RC5 as output (U3TX)
+// GPIO Configuration (CORRECTED)
+TRISCbits.TRISC5 = 1;       // RC5 as input (U3RX)
+TRISCbits.TRISC4 = 0;       // RC4 as output (U3TX)
 // Note: RC4 and RC5 are digital-only pins, no ANSEL configuration needed
 
-// PPS Configuration
-__builtin_write_OSCCONL(OSCCONL | 0x40);    // Unlock PPS
-_U3RXR = 52;                                 // Map U3RX to RP52 (RC4)
-_RP53R = 0x0001;                            // Map RP53 (RC5) to U3TX
-__builtin_write_OSCCONL(OSCCONL & ~0x40);   // Lock PPS
+// PPS Configuration (configured centrally in init_all_pps())
+// U3RX mapped to RP53 (RC5)
+// U3TX mapped to RP52 (RC4)
 ```
 
 **No additional configuration needed** - everything is handled by `gps_init()`.
@@ -257,8 +257,66 @@ When `start_beacon_frame()` is called, it reads these variables and encodes them
 - **COSPAS-SARSAT T.001**: Beacon protocol specification
 - **dsPIC33CK Datasheet**: UART and PPS configuration
 
+## ⚠️ Critical Issues Resolved
+
+### BCH2_POLY_MASK Bug (2025-11-25)
+**Problem**: System validation failed with real GPS coordinates, causing infinite transmission retry loop.
+
+**Diagnostic Process**:
+1. Traced execution with TRACE_IMMEDIATE logs
+2. Discovered validation always failed at `validate_frame_hardware()`
+3. Added BCH value logging: `BCH2_calc=0x1E77` vs `BCH2_recv=0x0E77`
+4. Identified bit 12 truncation due to incorrect mask
+
+**Root Cause**: `BCH2_POLY_MASK = 0x0FFF` (12-bit) should have been `0x1FFF` (13-bit). BCH degree 12 requires 13-bit mask to accommodate values 0 to 2^13-1.
+
+**Why Hidden in Testing**: TEST coordinates (42.95463, 1.364479) produced BCH2 values with bit 12=0, so masking had no effect. Real GPS coordinates (42.960594, 1.371029) produced BCH2=0x1E77 (bit 12=1), revealing the bug.
+
+**Impact**: Geographic location-dependent bug. Beacons would fail only at specific positions where BCH2 calculation sets bit 12.
+
+**Fix**: Single-line change in `protocol_data.h`:
+```c
+#define BCH2_POLY_MASK  0x1FFF    // Was 0x0FFF
+```
+
+### GPS Race Condition (2025-11-23)
+**Problem**: Non-deterministic frame validation failures when GPS updated position during transmission.
+
+**Root Cause**: GPS ISR (UART3) modified `current_latitude/longitude/altitude` (volatile double, 64-bit) while `build_compliant_frame()` read them. On dsPIC33CK, doubles require 4 memory accesses, creating TOCTOU vulnerability.
+
+**Solution Implemented**:
+1. **Atomic GPS snapshot** in `build_compliant_frame()`:
+```c
+__builtin_disable_interrupts();
+lat_snapshot = current_latitude;
+lon_snapshot = current_longitude;
+alt_snapshot = current_altitude;
+__builtin_enable_interrupts();
+```
+
+2. **Extended GPS ISR protection** in `start_beacon_frame()`:
+```c
+if (frame_type == BEACON_EXERCISE_FRAME) {
+    IEC3bits.U3RXIE = 0;  // Disable GPS ISR
+    build_exercise_frame();
+    transmit_beacon_frame();  // Includes validation
+    IEC3bits.U3RXIE = 1;  // Re-enable GPS ISR
+}
+```
+
+3. **Atomic beacon_frame[] write**:
+```c
+__builtin_disable_interrupts();
+memcpy((void*)beacon_frame, frame, MESSAGE_BITS);
+__builtin_enable_interrupts();
+```
+
+See `ISR_CONFLICTS.md` for complete analysis of ISR interactions.
+
 ## 🔒 Notes
-- GPS position updates are atomic (interrupt-safe)
+- GPS position updates are atomic (interrupt-safe) with multi-layer protection
 - System operates normally even without GPS fix (uses default position)
 - GPS module must output standard NMEA sentences (GGA or RMC)
 - Maximum NMEA sentence length: 82 characters
+- GPS ISR temporarily disabled during EXERCISE frame TX (~2ms, FIFO=4 chars, no data loss)
+- Transmission validated with real GPS coordinates at multiple geographic locations
