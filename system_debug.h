@@ -28,6 +28,9 @@ extern volatile uint32_t millis_counter;
     debug_full_flush(); \
 } while(0)
 
+// Macro pour logs TRACE immediats (bypass buffers)
+#define TRACE_IMMEDIATE(str) debug_push_str(str)
+
 // Macro pour logs ISR
 #define ISR_LOG_PHASE(phase, env, dac) do { \
     isr_log_push_char('P'); \

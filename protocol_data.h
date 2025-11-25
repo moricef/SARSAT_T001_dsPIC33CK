@@ -23,7 +23,7 @@
 #define BCH1_DATA_BITS  61
 
 #define BCH2_POLY       0x1539    // 13-bit (X^12 + ... + 1)
-#define BCH2_POLY_MASK  0x0FFF    // 12-bit mask
+#define BCH2_POLY_MASK  0x1FFF    // 12-bit mask
 #define BCH2_DEGREE     12
 #define BCH2_DATA_BITS  26
 

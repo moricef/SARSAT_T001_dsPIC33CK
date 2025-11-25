@@ -433,6 +433,12 @@ void build_compliant_frame(void) {
     alt_snapshot = current_altitude;
     __builtin_enable_interrupts();
 
+    TRACE_IMMEDIATE("[BUILD] GPS snapshot: lat=");
+    debug_print_float(lat_snapshot, 6);
+    TRACE_IMMEDIATE(" lon=");
+    debug_print_float(lon_snapshot, 6);
+    TRACE_IMMEDIATE("\r\n");
+
     // Message de construction unique
     if (!debug_flags.build_msg_printed) {
         debug_flags.build_msg_printed = 1;
@@ -475,6 +481,15 @@ void build_compliant_frame(void) {
     uint32_t bch1 = compute_bch1(pdf1_data);
     set_bit_field(frame, FRAME_BCH1_START, FRAME_BCH1_LENGTH, bch1);
 
+    TRACE_IMMEDIATE("[BUILD] BCH1=0x");
+    debug_push_char("0123456789ABCDEF"[(bch1 >> 20) & 0xF]);
+    debug_push_char("0123456789ABCDEF"[(bch1 >> 16) & 0xF]);
+    debug_push_char("0123456789ABCDEF"[(bch1 >> 12) & 0xF]);
+    debug_push_char("0123456789ABCDEF"[(bch1 >> 8) & 0xF]);
+    debug_push_char("0123456789ABCDEF"[(bch1 >> 4) & 0xF]);
+    debug_push_char("0123456789ABCDEF"[bch1 & 0xF]);
+    TRACE_IMMEDIATE("\r\n");
+
     // PDF-2 additional data
     set_bit_field(frame, FRAME_ACTIVATION_START, FRAME_ACTIVATION_LENGTH, 0x0UL);
 
@@ -488,6 +503,13 @@ void build_compliant_frame(void) {
     uint32_t pdf2_data = get_bit_field(frame, 107, 26);
     uint16_t bch2 = compute_bch2(pdf2_data);
     set_bit_field(frame, FRAME_BCH2_START, FRAME_BCH2_LENGTH, bch2);
+
+    TRACE_IMMEDIATE("[BUILD] BCH2=0x");
+    debug_push_char("0123456789ABCDEF"[(bch2 >> 12) & 0xF]);
+    debug_push_char("0123456789ABCDEF"[(bch2 >> 8) & 0xF]);
+    debug_push_char("0123456789ABCDEF"[(bch2 >> 4) & 0xF]);
+    debug_push_char("0123456789ABCDEF"[bch2 & 0xF]);
+    TRACE_IMMEDIATE("\r\n");
        
     // Critical validation - dsPIC33CK optimized
     uint64_t pdf1_check = get_bit_field(frame, 25, 61);
@@ -547,6 +569,8 @@ void build_exercise_frame(void) {
 }
 
 void start_beacon_frame(beacon_frame_type_t frame_type) {
+    TRACE_IMMEDIATE("[TRACE] start_beacon_frame START\r\n");
+
     // CRITICAL SECTION: Disable GPS ISR for EXERCISE mode during entire TX sequence
     // Prevents GPS data changes between frame construction, validation, and transmission
     //
@@ -564,8 +588,10 @@ void start_beacon_frame(beacon_frame_type_t frame_type) {
     if (frame_type == BEACON_EXERCISE_FRAME) {
         IEC3bits.U3RXIE = 0;  // Disable GPS UART3 RX interrupt
         gps_was_disabled = 1;
+        TRACE_IMMEDIATE("[TRACE] GPS ISR disabled\r\n");
     }
 
+    TRACE_IMMEDIATE("[TRACE] before switch frame_type\r\n");
     switch(frame_type) {
         case BEACON_TEST_FRAME:
             build_test_frame();       // TEST mode with fixed coordinates and low power
@@ -573,7 +599,9 @@ void start_beacon_frame(beacon_frame_type_t frame_type) {
             break;
 
         case BEACON_EXERCISE_FRAME:
+            TRACE_IMMEDIATE("[TRACE] calling build_exercise_frame\r\n");
             build_exercise_frame();   // EXERCISE mode with high power
+            TRACE_IMMEDIATE("[TRACE] build_exercise_frame returned\r\n");
             set_tx_interval(15000);    // 15s interval for testing
             break;
     }
@@ -582,33 +610,45 @@ void start_beacon_frame(beacon_frame_type_t frame_type) {
     //cs_t001_full_compliance_check();
 
     // Transmission physique
+    TRACE_IMMEDIATE("[TRACE] calling transmit_beacon_frame\r\n");
     transmit_beacon_frame();
+    TRACE_IMMEDIATE("[TRACE] transmit_beacon_frame returned\r\n");
 
     // Re-enable GPS ISR after transmission started (last_tx_time updated)
     if (gps_was_disabled) {
         IEC3bits.U3RXIE = 1;  // Re-enable GPS interrupt
+        TRACE_IMMEDIATE("[TRACE] GPS ISR re-enabled\r\n");
     }
+
+    TRACE_IMMEDIATE("[TRACE] start_beacon_frame END\r\n");
 }
 
 void transmit_beacon_frame(void) {
+    TRACE_IMMEDIATE("[TRACE] transmit_beacon_frame START\r\n");
+    TRACE_IMMEDIATE("[TRACE] calling validate_frame_hardware\r\n");
     if (!validate_frame_hardware()) {
+        TRACE_IMMEDIATE("[TRACE] validate FAILED\r\n");
         DEBUG_LOG_FLUSH("ERROR: Invalid frame - transmission aborted\r\n");
         return;
     }
+    TRACE_IMMEDIATE("[TRACE] validate OK\r\n");
 
     // Copie atomique vers le buffer RF et démarrage transmission
+    TRACE_IMMEDIATE("[TRACE] calling start_transmission\r\n");
     __builtin_disable_interrupts();
     start_transmission(beacon_frame); // Défini dans system_comms.c
     __builtin_enable_interrupts();
-    
+    TRACE_IMMEDIATE("[TRACE] start_transmission returned\r\n");
+
     // 2. Log de confirmation
     if (!debug_flags.transmission_printed) {
         debug_flags.transmission_printed = 1;
         DEBUG_LOG_FLUSH("Transmission started: ");
-        DEBUG_LOG_FLUSH((beacon_mode == BEACON_MODE_TEST) ? 
+        DEBUG_LOG_FLUSH((beacon_mode == BEACON_MODE_TEST) ?
                         "TEST" : "EXERCISE");
         DEBUG_LOG_FLUSH(" mode\r\n");
     }
+    TRACE_IMMEDIATE("[TRACE] transmit_beacon_frame END\r\n");
 }
 
 // =============================
@@ -1013,13 +1053,38 @@ uint8_t validate_frame_hardware(void) {
     uint64_t pdf1 = get_bit_field_volatile(beacon_frame, 25, 61);
     uint32_t bch1_calc = compute_bch1(pdf1);
     uint32_t bch1_recv = (uint32_t)get_bit_field_volatile(beacon_frame, 86, 21);
-    
+
     uint32_t pdf2 = (uint32_t)get_bit_field_volatile(beacon_frame, 107, 26);
     uint16_t bch2_calc = compute_bch2(pdf2);
     uint16_t bch2_recv = (uint16_t)get_bit_field_volatile(beacon_frame, 133, 12);
-    
+
     if(bch1_calc != bch1_recv || bch2_calc != bch2_recv) {
-        DEBUG_LOG_FLUSH("FRAME VALIDATION ERROR\r\n");
+        TRACE_IMMEDIATE("BCH FAIL: BCH1_calc=0x");
+        debug_push_char((bch1_calc >> 20) & 0xF ? '0' + ((bch1_calc >> 20) & 0xF) : '0');
+        debug_push_char("0123456789ABCDEF"[(bch1_calc >> 16) & 0xF]);
+        debug_push_char("0123456789ABCDEF"[(bch1_calc >> 12) & 0xF]);
+        debug_push_char("0123456789ABCDEF"[(bch1_calc >> 8) & 0xF]);
+        debug_push_char("0123456789ABCDEF"[(bch1_calc >> 4) & 0xF]);
+        debug_push_char("0123456789ABCDEF"[bch1_calc & 0xF]);
+        TRACE_IMMEDIATE(" recv=0x");
+        debug_push_char((bch1_recv >> 20) & 0xF ? '0' + ((bch1_recv >> 20) & 0xF) : '0');
+        debug_push_char("0123456789ABCDEF"[(bch1_recv >> 16) & 0xF]);
+        debug_push_char("0123456789ABCDEF"[(bch1_recv >> 12) & 0xF]);
+        debug_push_char("0123456789ABCDEF"[(bch1_recv >> 8) & 0xF]);
+        debug_push_char("0123456789ABCDEF"[(bch1_recv >> 4) & 0xF]);
+        debug_push_char("0123456789ABCDEF"[bch1_recv & 0xF]);
+        TRACE_IMMEDIATE("\r\n");
+        TRACE_IMMEDIATE("BCH FAIL: BCH2_calc=0x");
+        debug_push_char("0123456789ABCDEF"[(bch2_calc >> 12) & 0xF]);
+        debug_push_char("0123456789ABCDEF"[(bch2_calc >> 8) & 0xF]);
+        debug_push_char("0123456789ABCDEF"[(bch2_calc >> 4) & 0xF]);
+        debug_push_char("0123456789ABCDEF"[bch2_calc & 0xF]);
+        TRACE_IMMEDIATE(" recv=0x");
+        debug_push_char("0123456789ABCDEF"[(bch2_recv >> 12) & 0xF]);
+        debug_push_char("0123456789ABCDEF"[(bch2_recv >> 8) & 0xF]);
+        debug_push_char("0123456789ABCDEF"[(bch2_recv >> 4) & 0xF]);
+        debug_push_char("0123456789ABCDEF"[bch2_recv & 0xF]);
+        TRACE_IMMEDIATE("\r\n");
         return 0;
     }
     return 1;
