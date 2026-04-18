@@ -31,42 +31,35 @@
 #define KEYPAD_DEBOUNCE_COUNT 3
 
 // Row pins: RA0, RA1, RA2, RA4 (output, driven low for scan)
+// Note: analog mode already cleared by init_gpio() (ANSELA = 0 except RA3)
 #define KP_ROW0_TRIS   TRISAbits.TRISA0
 #define KP_ROW0_LAT    LATAbits.LATA0
-#define KP_ROW0_ANSEL  ANSELAbits.ANSELA0
 
 #define KP_ROW1_TRIS   TRISAbits.TRISA1
 #define KP_ROW1_LAT    LATAbits.LATA1
-#define KP_ROW1_ANSEL  ANSELAbits.ANSELA1
 
 #define KP_ROW2_TRIS   TRISAbits.TRISA2
 #define KP_ROW2_LAT    LATAbits.LATA2
-#define KP_ROW2_ANSEL  ANSELAbits.ANSELA2
 
 #define KP_ROW3_TRIS   TRISAbits.TRISA4
 #define KP_ROW3_LAT    LATAbits.LATA4
-#define KP_ROW3_ANSEL  ANSELAbits.ANSELA4
 
 // Col pins: RC6, RC7, RC12, RC13 (input with internal pull-up)
 #define KP_COL0_TRIS   TRISCbits.TRISC6
 #define KP_COL0_PORT   PORTCbits.RC6
 #define KP_COL0_CNPU   CNPUCbits.CNPUC6
-#define KP_COL0_ANSEL  ANSELCbits.ANSELC6
 
 #define KP_COL1_TRIS   TRISCbits.TRISC7
 #define KP_COL1_PORT   PORTCbits.RC7
 #define KP_COL1_CNPU   CNPUCbits.CNPUC7
-#define KP_COL1_ANSEL  ANSELCbits.ANSELC7
 
 #define KP_COL2_TRIS   TRISCbits.TRISC12
 #define KP_COL2_PORT   PORTCbits.RC12
 #define KP_COL2_CNPU   CNPUCbits.CNPUC12
-#define KP_COL2_ANSEL  ANSELCbits.ANSELC12
 
 #define KP_COL3_TRIS   TRISCbits.TRISC13
 #define KP_COL3_PORT   PORTCbits.RC13
 #define KP_COL3_CNPU   CNPUCbits.CNPUC13
-#define KP_COL3_ANSEL  ANSELCbits.ANSELC13
 
 // Return value when no key is pressed
 #define KEYPAD_NO_KEY   '\0'

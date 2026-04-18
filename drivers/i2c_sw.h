@@ -18,12 +18,10 @@
 #define I2C_SW_SCL_TRIS   TRISDbits.TRISD8
 #define I2C_SW_SCL_LAT    LATDbits.LATD8
 #define I2C_SW_SCL_PORT   PORTDbits.RD8
-#define I2C_SW_SCL_ANSEL  ANSELDbits.ANSELD8
 
 #define I2C_SW_SDA_TRIS   TRISDbits.TRISD1
 #define I2C_SW_SDA_LAT    LATDbits.LATD1
 #define I2C_SW_SDA_PORT   PORTDbits.RD1
-#define I2C_SW_SDA_ANSEL  ANSELDbits.ANSELD1
 
 // Half-period delay in µs (5 µs → ~100 kHz at FCY=50 MHz)
 #define I2C_SW_DELAY_US   5

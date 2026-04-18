@@ -40,17 +40,20 @@ static uint8_t read_col(uint8_t col) {
 // =============================
 
 void keypad_init(void) {
-    // Row pins: digital output, drive high (inactive)
-    KP_ROW0_ANSEL = 0; KP_ROW0_TRIS = 0; KP_ROW0_LAT = 1;
-    KP_ROW1_ANSEL = 0; KP_ROW1_TRIS = 0; KP_ROW1_LAT = 1;
-    KP_ROW2_ANSEL = 0; KP_ROW2_TRIS = 0; KP_ROW2_LAT = 1;
-    KP_ROW3_ANSEL = 0; KP_ROW3_TRIS = 0; KP_ROW3_LAT = 1;
+    // Analog mode already cleared globally in init_gpio() for PORTA.
+    // PORTC pins here are digital-only (no ANSELC bits on RC6/7/12/13).
 
-    // Col pins: digital input with pull-up
-    KP_COL0_ANSEL = 0; KP_COL0_TRIS = 1; KP_COL0_CNPU = 1;
-    KP_COL1_ANSEL = 0; KP_COL1_TRIS = 1; KP_COL1_CNPU = 1;
-    KP_COL2_ANSEL = 0; KP_COL2_TRIS = 1; KP_COL2_CNPU = 1;
-    KP_COL3_ANSEL = 0; KP_COL3_TRIS = 1; KP_COL3_CNPU = 1;
+    // Row pins: digital output, drive high (inactive)
+    KP_ROW0_TRIS = 0; KP_ROW0_LAT = 1;
+    KP_ROW1_TRIS = 0; KP_ROW1_LAT = 1;
+    KP_ROW2_TRIS = 0; KP_ROW2_LAT = 1;
+    KP_ROW3_TRIS = 0; KP_ROW3_LAT = 1;
+
+    // Col pins: digital input with internal pull-up
+    KP_COL0_TRIS = 1; KP_COL0_CNPU = 1;
+    KP_COL1_TRIS = 1; KP_COL1_CNPU = 1;
+    KP_COL2_TRIS = 1; KP_COL2_CNPU = 1;
+    KP_COL3_TRIS = 1; KP_COL3_CNPU = 1;
 }
 
 char keypad_scan_raw(void) {

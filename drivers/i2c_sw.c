@@ -5,10 +5,7 @@
 #include "i2c_sw.h"
 
 void i2c_sw_init(void) {
-    // Disable analog mode on I2C pins
-    I2C_SW_SCL_ANSEL = 0;
-    I2C_SW_SDA_ANSEL = 0;
-
+    // Analog mode already disabled globally in init_gpio() (ANSELD = 0)
     // Start in released (high) state
     I2C_SCL_HIGH();
     I2C_SDA_HIGH();
