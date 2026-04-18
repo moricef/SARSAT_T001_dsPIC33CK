@@ -6,6 +6,9 @@
 #include "rf_interface.h"   // Pour les fonctions RF
 #include "spi2_test.h"      // Test de compatibilité SPI2
 #include "drivers/mcp4922_driver.h"  // Driver MCP4922
+#include "drivers/i2c_sw.h"          // Software I2C for LCD
+#include "drivers/lcd1604_i2c.h"     // LCD 16x4 via PCF8574
+#include "drivers/keypad_matrix.h"   // 4x4 matrix keypad
 #include "gps_nmea.h"       // GPS NMEA support
 
 // Declarations externes
@@ -73,6 +76,20 @@ int main(void) {
     rf_initialize_all_modules();
     DEBUG_LOG_FLUSH("RF modules init completed\r\n");
 
+    // Initialize LCD 1604 + keypad
+    i2c_sw_init();
+    lcd_init();
+    keypad_init();
+    lcd_set_cursor(0, 0);
+    lcd_print_str("SARSAT T.001");
+    lcd_set_cursor(1, 0);
+    lcd_print_str("403.04 MHz");
+    lcd_set_cursor(2, 0);
+    lcd_print_str("GPS: --");
+    lcd_set_cursor(3, 0);
+    lcd_print_str("Ready");
+    DEBUG_LOG_FLUSH("LCD+Keypad init completed\r\n");
+
     // Test de compatibilité SPI2 (logiciel uniquement)
     //DEBUG_LOG_FLUSH("Starting SPI2 compatibility test...\r\n");
     //run_spi2_compatibility_test();
@@ -105,6 +122,32 @@ int main(void) {
         __builtin_disable_interrupts();
         current_time = millis_counter;
         __builtin_enable_interrupts();
+
+        // Keypad scan (debounced) - display key pressed on LCD row 3
+        char key = keypad_get_key();
+        if (key != KEYPAD_NO_KEY && tx_phase == IDLE_STATE) {
+            lcd_set_cursor(3, 0);
+            lcd_print_str("Key: ");
+            lcd_print_char(key);
+            lcd_print_str("      ");  // Clear trailing chars
+        }
+
+        // Periodic LCD refresh (every 500 ms, only when idle)
+        static uint32_t last_lcd_update = 0;
+        if ((current_time - last_lcd_update) >= 500 && tx_phase == IDLE_STATE) {
+            last_lcd_update = current_time;
+
+            // Line 2: GPS status
+            lcd_set_cursor(2, 0);
+            if (gps_has_fix()) {
+                const gps_data_t *gps = gps_get_data();
+                lcd_print_str("GPS: ");
+                lcd_print_int(gps->satellites);
+                lcd_print_str(" sats ");
+            } else {
+                lcd_print_str("GPS: no fix    ");
+            }
+        }
 
         // Process GPS data
         if (gps_update()) {
