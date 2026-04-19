@@ -84,7 +84,7 @@ int main(void) {
     lcd_set_cursor(0, 0);
     lcd_print_str("SARSAT T.001");
     lcd_set_cursor(1, 0);
-    lcd_print_str("403.04 MHz");
+    lcd_print_str("403.040 MHz");
     lcd_set_cursor(2, 0);
     lcd_print_str("GPS: --");
     lcd_set_cursor(3, 0);
