@@ -4,10 +4,13 @@
 
 #include "lcd1604_i2c.h"
 #include "i2c_sw.h"
+#include "../system_debug.h"
 #include <stdio.h>
 
-// Row start addresses for 16x4 LCD (HD44780 DDRAM offsets)
-static const uint8_t lcd_row_offsets[4] = { 0x00, 0x40, 0x10, 0x50 };
+static volatile uint16_t lcd_nack_count = 0;
+
+// Row start addresses for 20x4 LCD (HD44780 DDRAM offsets)
+static const uint8_t lcd_row_offsets[4] = { 0x00, 0x40, 0x14, 0x54 };
 
 static uint8_t lcd_backlight = LCD_BIT_BL;  // Backlight on by default
 
@@ -16,7 +19,9 @@ static uint8_t lcd_backlight = LCD_BIT_BL;  // Backlight on by default
 // =============================
 static void lcd_pcf8574_write(uint8_t data) {
     uint8_t byte = data | lcd_backlight;
-    i2c_sw_write(LCD_I2C_ADDR, &byte, 1);
+    if (i2c_sw_write(LCD_I2C_ADDR, &byte, 1)) {
+        lcd_nack_count++;
+    }
 }
 
 // Pulse the Enable pin to latch 4-bit nibble
@@ -24,7 +29,7 @@ static void lcd_pulse_enable(uint8_t data) {
     lcd_pcf8574_write(data | LCD_BIT_E);
     __delay_us(1);
     lcd_pcf8574_write(data & ~LCD_BIT_E);
-    __delay_us(50);  // Command execution time (min 37 µs)
+    __delay_us(50);
 }
 
 // Send a 4-bit nibble (data on P4-P7)
@@ -57,43 +62,57 @@ static void lcd_data(uint8_t data) {
 // =============================
 
 void lcd_init(void) {
-    __delay_ms(50);  // Wait for LCD power-up (>40 ms)
+    uint16_t n0, n1, n2, n3, n4, n5;
+    __delay_ms(50);
 
-    // Initialize in 4-bit mode (HD44780 power-on sequence)
+    lcd_nack_count = 0;
     lcd_pcf8574_write(0x00);
     __delay_ms(20);
+    n0 = lcd_nack_count;
 
-    // Send 0x3 three times to reset (8-bit mode init)
     lcd_write_nibble(0x03, 0);
     __delay_ms(5);
     lcd_write_nibble(0x03, 0);
     __delay_us(150);
     lcd_write_nibble(0x03, 0);
     __delay_us(150);
+    n1 = lcd_nack_count;
 
-    // Switch to 4-bit mode
     lcd_write_nibble(0x02, 0);
     __delay_us(150);
+    n2 = lcd_nack_count;
 
-    // Function Set: 4-bit, 2 lines (covers 4 rows), 5x8 dots
     lcd_command(0x28);
     __delay_us(50);
+    n3 = lcd_nack_count;
 
-    // Display OFF
     lcd_command(0x08);
     __delay_us(50);
 
-    // Clear display
     lcd_command(0x01);
-    __delay_ms(2);  // Clear needs >1.52 ms
+    __delay_ms(2);
+    n4 = lcd_nack_count;
 
-    // Entry mode: increment cursor, no display shift
     lcd_command(0x06);
     __delay_us(50);
 
-    // Display ON, cursor OFF, blink OFF
     lcd_command(0x0C);
     __delay_us(50);
+    n5 = lcd_nack_count;
+
+    DEBUG_LOG_FLUSH("LCD init NACKs: n0=");
+    debug_print_uint16(n0);
+    DEBUG_LOG_FLUSH(" n1=");
+    debug_print_uint16(n1);
+    DEBUG_LOG_FLUSH(" n2=");
+    debug_print_uint16(n2);
+    DEBUG_LOG_FLUSH(" n3=");
+    debug_print_uint16(n3);
+    DEBUG_LOG_FLUSH(" n4=");
+    debug_print_uint16(n4);
+    DEBUG_LOG_FLUSH(" n5=");
+    debug_print_uint16(n5);
+    DEBUG_LOG_FLUSH("\r\n");
 }
 
 void lcd_clear(void) {

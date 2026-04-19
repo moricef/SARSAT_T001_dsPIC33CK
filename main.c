@@ -78,6 +78,7 @@ int main(void) {
 
     // Initialize LCD 1604 + keypad
     i2c_sw_init();
+    i2c_sw_scan();  // Log I2C devices found (debug only)
     lcd_init();
     keypad_init();
     lcd_set_cursor(0, 0);

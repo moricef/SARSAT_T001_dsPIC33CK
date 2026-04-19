@@ -23,7 +23,7 @@
 #define I2C_SW_SDA_LAT    LATDbits.LATD1
 #define I2C_SW_SDA_PORT   PORTDbits.RD1
 
-// Half-period delay in µs (5 µs → ~100 kHz at FCY=50 MHz)
+// Half-period delay in µs (10 µs → ~50 kHz at FCY=50 MHz)
 #define I2C_SW_DELAY_US   5
 
 // =============================
@@ -56,5 +56,11 @@ uint8_t i2c_sw_read_byte(uint8_t ack);
 
 // Convenience: write a buffer to a 7-bit address. Returns 0 on success.
 uint8_t i2c_sw_write(uint8_t addr7, const uint8_t *buf, uint8_t len);
+
+// Probe a 7-bit address. Returns 0 if device ACKs, 1 if NACK/absent.
+uint8_t i2c_sw_probe(uint8_t addr7);
+
+// Scan 0x08-0x77 and log responding addresses via debug UART.
+void i2c_sw_scan(void);
 
 #endif /* I2C_SW_H */

@@ -19,8 +19,8 @@
 // =============================
 // Configuration
 // =============================
-#define LCD_I2C_ADDR    0x27   // 7-bit address (change to 0x3F if needed)
-#define LCD_COLS        16
+#define LCD_I2C_ADDR    0x27   // 7-bit address (PCF8574, A0..A2=1)
+#define LCD_COLS        20
 #define LCD_ROWS        4
 
 // PCF8574 bit mapping

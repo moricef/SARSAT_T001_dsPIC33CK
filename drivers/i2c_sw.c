@@ -3,6 +3,7 @@
  */
 
 #include "i2c_sw.h"
+#include "../system_debug.h"
 
 void i2c_sw_init(void) {
     // Analog mode already disabled globally in init_gpio() (ANSELD = 0)
@@ -126,4 +127,34 @@ uint8_t i2c_sw_write(uint8_t addr7, const uint8_t *buf, uint8_t len) {
 
     i2c_sw_stop();
     return 0;
+}
+
+uint8_t i2c_sw_probe(uint8_t addr7) {
+    uint8_t nack;
+    if (i2c_sw_start()) return 1;
+    nack = i2c_sw_write_byte((uint8_t)(addr7 << 1));
+    i2c_sw_stop();
+    return nack;
+}
+
+void i2c_sw_scan(void) {
+    uint8_t addr;
+    uint8_t found = 0;
+    DEBUG_LOG_FLUSH("I2C scan...\r\n");
+    for (addr = 0x08; addr <= 0x77; addr++) {
+        if (!i2c_sw_probe(addr)) {
+            char hi = (char)((addr >> 4) & 0x0F);
+            char lo = (char)(addr & 0x0F);
+            hi = (hi < 10) ? (char)('0' + hi) : (char)('A' + hi - 10);
+            lo = (lo < 10) ? (char)('0' + lo) : (char)('A' + lo - 10);
+            DEBUG_LOG_FLUSH("I2C device at 0x");
+            debug_print_char(hi);
+            debug_print_char(lo);
+            DEBUG_LOG_FLUSH("\r\n");
+            found++;
+        }
+    }
+    if (!found) {
+        DEBUG_LOG_FLUSH("I2C scan: no device found\r\n");
+    }
 }
