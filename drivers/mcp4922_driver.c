@@ -7,20 +7,17 @@
 #include <stdio.h>
 
 void mcp4922_init(void) {
-    // Configure SPI2 pins as digital (RB7-9 are digital by default)
-    ANSELBbits.ANSELB7 = 0;  // RB7 digital (SCK2)
-    ANSELBbits.ANSELB8 = 0;  // RB8 digital (SDO2)
-    ANSELBbits.ANSELB9 = 0;  // RB9 digital (CS)
-
-    // Configure SPI2 pins as outputs
+    // Configure SPI2 pins as outputs (digital by default, no ANSEL)
     TRISBbits.TRISB7 = 0;  // RB7 (SCK2) as output
     TRISBbits.TRISB8 = 0;  // RB8 (SDO2) as output
     MCP4922_CS_TRIS = 0;   // RB9 (CS) as output
     MCP4922_CS_LAT = 1;    // CS high (inactive)
+    MCP4922_LDAC_TRIS = 0; // RB15 (LDAC) as output
+    MCP4922_LDAC_LAT = 0;  // LDAC low: immediate latch on rising CS
 
-    // Configure PPS for SPI2
+    // Configure PPS for SPI2 (SDO2=8, SCK2=9)
     __builtin_write_RPCON(0x0000);
-    RPOR3bits.RP39R = 8;    // SCK2 on RB7 (RP39)
+    RPOR3bits.RP39R = 9;    // SCK2 on RB7 (RP39)
     RPOR4bits.RP40R = 8;    // SDO2 on RB8 (RP40)
     __builtin_write_RPCON(0x0800);
 

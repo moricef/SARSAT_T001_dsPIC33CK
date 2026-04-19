@@ -15,9 +15,11 @@
 #define MCP4922_RESOLUTION      4096    // 12-bit DAC
 #define MCP4922_OFFSET          2048    // Mid-scale (1.65V with 3.3V ref)
 
-// Pin assignments for SPI2 (RB7, RB8, RB9)
+// Pin assignments (SCK=RB7, SDI=RB8, CS=RB9, LDAC=RB15)
 #define MCP4922_CS_TRIS         TRISBbits.TRISB9
 #define MCP4922_CS_LAT          LATBbits.LATB9
+#define MCP4922_LDAC_TRIS       TRISBbits.TRISB15
+#define MCP4922_LDAC_LAT        LATBbits.LATB15
 
 // Function prototypes
 void mcp4922_init(void);

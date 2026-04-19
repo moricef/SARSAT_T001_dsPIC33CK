@@ -104,10 +104,10 @@ int main(void) {
     debug_print_char(rf_build_time[7]);
     DEBUG_LOG_FLUSH(" INIT COMPLETE ===\r\n");
 
-    // Test MCP4922 pattern pour vérifier SPI2
-    DEBUG_LOG_FLUSH("Testing MCP4922 pattern...\r\n");
-    mcp4922_test_pattern();
-    DEBUG_LOG_FLUSH("MCP4922 pattern test completed\r\n");
+    // Test MCP4922 pattern pour vérifier SPI2 (désactivé: 36s de délai au boot)
+    //DEBUG_LOG_FLUSH("Testing MCP4922 pattern...\r\n");
+    //mcp4922_test_pattern();
+    //DEBUG_LOG_FLUSH("MCP4922 pattern test completed\r\n");
 
     rf_set_power_level(RF_POWER_LOW);
     

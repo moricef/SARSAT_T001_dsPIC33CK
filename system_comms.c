@@ -299,8 +299,8 @@ void __attribute__((interrupt, auto_psv)) _T1Interrupt(void) {
                 break;
         }
 
-        // Update DAC output
-        DAC1DATH = dac_value & 0x0FFF;
+        // Update DAC output via MCP4922 (I channel)
+        mcp4922_write_dac_a(dac_value & 0x0FFF);
     }
 
     // Clear interrupt flag
