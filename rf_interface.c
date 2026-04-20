@@ -83,6 +83,33 @@ void adf4351_write_register(uint32_t reg_data) {
 }
 
 // =============================
+// ADF4351 Frequency Programming
+// =============================
+
+// DIVIDER=8 (valid for ~275-550 MHz output), f_PFD=25 MHz, MOD=1000
+// Resolution = 25000/(1000*8) = 3.125 kHz per FRAC unit
+void adf4351_set_frequency(uint32_t freq_khz) {
+    uint32_t f_vco  = freq_khz * 8UL;
+    uint32_t n_int  = f_vco / 25000UL;
+    uint32_t n_frac = ((f_vco % 25000UL) * 1000UL + 12500UL) / 25000UL;
+    if (n_frac >= 1000UL) { n_int++; n_frac = 0; }
+
+    uint32_t regs[6];
+    regs[0] = adf4351_regs_403mhz[0];                                          // R5
+    regs[1] = adf4351_regs_403mhz[1];                                          // R4
+    regs[2] = adf4351_regs_403mhz[2];                                          // R3
+    regs[3] = adf4351_regs_403mhz[3];                                          // R2
+    regs[4] = (adf4351_regs_403mhz[4] & 0xFFFF8007UL) | (1000UL << 3);        // R1 MOD=1000
+    regs[5] = (n_int << 15) | (n_frac << 3);                                   // R0
+
+    for (uint8_t i = 0; i < 6; i++) {
+        adf4351_write_register(regs[i]);
+        __delay_ms(2);
+    }
+    __delay_ms(50);
+}
+
+// =============================
 // ADF4351 Lock Detection with Timeout
 // =============================
 
@@ -333,23 +360,8 @@ void rf_control_amplifier_chain(uint8_t state) {
 
 void rf_start_transmission(void) {
     DEBUG_LOG_FLUSH("Starting transmission sequence...\r\n");
-
-    // Ensure all RF outputs are OFF before PLL preparation
     rf_adf4351_enable_output(0);
     AMP_ENABLE_PIN = 0;
-
-    // Enable ADF4351 chip and exit power-down (but no RF output yet)
-    rf_adf4351_enable_chip(1);
-    __delay_ms(5);
-    rf_adf4351_power_down(0);
-    __delay_ms(5);
-
-    // Wait for PLL lock
-    if (!rf_adf4351_wait_for_lock_with_timeout()) {
-        DEBUG_LOG_FLUSH("WARNING: PLL not locked during startup\r\n");
-    }
-
-    DEBUG_LOG_FLUSH("RF PLL ready (no carrier yet)\r\n");
 }
 
 void rf_stop_transmission(void) {

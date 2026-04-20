@@ -42,6 +42,7 @@
 // ADF4351 PLL Synthesizer Functions
 // =============================
 void rf_init_adf4351(void);                    // Initialize ADF4351 @ 403 MHz
+void adf4351_set_frequency(uint32_t freq_khz); // Reprogram ADF4351 to new frequency
 void rf_adf4351_enable_output(uint8_t state);  // Enable/disable RF output
 void rf_adf4351_power_down(uint8_t enable);    // Enable/disable power-down mode
 uint8_t adf4351_verify_lock_status(void);      // Verify PLL lock with multiple readings

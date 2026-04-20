@@ -25,14 +25,47 @@ extern void rf_stop_transmission(void);
 extern void rf_adf4351_enable_chip(uint8_t state);
 extern const uint32_t adf4351_regs_403mhz[];
 
-// Lecture du switch de sélection mode
-beacon_frame_type_t get_frame_type_from_switch(void) {
-    // RB2 = 0 (pull-down) → TEST mode
-    // RB2 = 1 (switch pressed) → EXERCISE mode
-    return PORTBbits.RB2 ? BEACON_EXERCISE_FRAME : BEACON_TEST_FRAME;
+// Parse "403.040" or "403040" → kHz (dot key = 'B')
+static uint32_t freq_parse_khz(const char *s) {
+    uint32_t int_part = 0, frac_part = 0;
+    uint8_t has_dot = 0, frac_digits = 0;
+    for (uint8_t i = 0; s[i]; i++) {
+        if (s[i] == '.') { has_dot = 1; continue; }
+        if (has_dot) {
+            if (frac_digits < 3) { frac_part = frac_part * 10 + (uint8_t)(s[i] - '0'); frac_digits++; }
+        } else {
+            int_part = int_part * 10 + (uint8_t)(s[i] - '0');
+        }
+    }
+    while (frac_digits < 3) { frac_part *= 10; frac_digits++; }
+    return int_part * 1000UL + frac_part;
+}
 
-    // TEMPORARY: Force EXERCISE mode for GPS testing (uncomment to override switch)
-    //return BEACON_EXERCISE_FRAME;
+static void lcd_freq_display(uint32_t freq_khz) {
+    uint16_t mhz = (uint16_t)(freq_khz / 1000UL);
+    uint16_t khz = (uint16_t)(freq_khz % 1000UL);
+    lcd_set_cursor(1, 0);
+    lcd_print_str("Freq:");
+    lcd_print_int((int16_t)mhz);
+    lcd_print_char('.');
+    if (khz < 100) lcd_print_char('0');
+    if (khz < 10)  lcd_print_char('0');
+    lcd_print_int((int16_t)khz);
+    lcd_print_str(" MHz   ");
+}
+
+// Mode sélectionnable au clavier (C = toggle TEST/EXERCISE)
+static beacon_frame_type_t current_frame_type = BEACON_TEST_FRAME;
+
+beacon_frame_type_t get_frame_type_from_switch(void) {
+    return current_frame_type;
+}
+
+static void lcd_mode_display(void) {
+    lcd_set_cursor(0, 0);
+    lcd_print_str(current_frame_type == BEACON_TEST_FRAME
+        ? "TEST 5s 100mW       "
+        : "EXERC 30s 5W        ");
 }
 
 uint8_t should_transmit_beacon(void) {
@@ -81,14 +114,11 @@ int main(void) {
     i2c_sw_scan();  // Log I2C devices found (debug only)
     lcd_init();
     keypad_init();
-    lcd_set_cursor(0, 0);
-    lcd_print_str("SARSAT T.001");
+    lcd_mode_display();
     lcd_set_cursor(1, 0);
-    lcd_print_str("403.040 MHz");
+    lcd_print_str("Freq:403.040 MHz");
     lcd_set_cursor(2, 0);
-    lcd_print_str("GPS: --");
-    lcd_set_cursor(3, 0);
-    lcd_print_str("Ready");
+    lcd_print_str("GNSS:no fix         ");
     DEBUG_LOG_FLUSH("LCD+Keypad init completed\r\n");
 
     // Test de compatibilité SPI2 (logiciel uniquement)
@@ -111,10 +141,9 @@ int main(void) {
 
     rf_set_power_level(RF_POWER_LOW);
     
-    beacon_frame_type_t frame_type = get_frame_type_from_switch();
     DEBUG_LOG_FLUSH("Starting transmission - Mode: ");
-    DEBUG_LOG_FLUSH(frame_type == BEACON_TEST_FRAME ? "TEST\r\n" : "EXERCISE\r\n");
-    start_beacon_frame(frame_type);  // Generate according to switch
+    DEBUG_LOG_FLUSH(current_frame_type == BEACON_TEST_FRAME ? "TEST\r\n" : "EXERCISE\r\n");
+    start_beacon_frame(current_frame_type);
 
     while(1) {
 		process_uart_commands();  // Handle commands
@@ -124,13 +153,61 @@ int main(void) {
         current_time = millis_counter;
         __builtin_enable_interrupts();
 
-        // Keypad scan (debounced) - display key pressed on LCD row 3
+        // Keypad: frequency entry state machine
+        // A=enter, 0-9=digit, B=decimal point, *=backspace, #=confirm, D=cancel
+        static uint8_t freq_entry_mode = 0;
+        static char freq_buf[8] = {0};
+        static uint8_t freq_buf_len = 0;
+
         char key = keypad_get_key();
         if (key != KEYPAD_NO_KEY && tx_phase == IDLE_STATE) {
-            lcd_set_cursor(3, 0);
-            lcd_print_str("Key: ");
-            lcd_print_char(key);
-            lcd_print_str("      ");  // Clear trailing chars
+            if (!freq_entry_mode) {
+                if (key == 'C' && tx_phase == IDLE_STATE) {
+                    current_frame_type = (current_frame_type == BEACON_TEST_FRAME)
+                        ? BEACON_EXERCISE_FRAME : BEACON_TEST_FRAME;
+                    lcd_mode_display();
+                } else if (key == 'A') {
+                    freq_entry_mode = 1;
+                    freq_buf_len = 0;
+                    freq_buf[0] = '\0';
+                    lcd_set_cursor(1, 0);
+                    lcd_print_str("Freq:           ");
+                    lcd_set_cursor(3, 0);
+                    lcd_print_str("B=. *=eff #=OK D=ann");
+                }
+            } else {
+                if ((key >= '0' && key <= '9') && freq_buf_len < 7) {
+                    freq_buf[freq_buf_len++] = key;
+                    freq_buf[freq_buf_len] = '\0';
+                    lcd_set_cursor(1, 5);
+                    lcd_print_str(freq_buf);
+                } else if (key == 'B' && freq_buf_len < 7) {
+                    freq_buf[freq_buf_len++] = '.';
+                    freq_buf[freq_buf_len] = '\0';
+                    lcd_set_cursor(1, 5);
+                    lcd_print_str(freq_buf);
+                } else if (key == '*' && freq_buf_len > 0) {
+                    freq_buf[--freq_buf_len] = '\0';
+                    lcd_set_cursor(1, 5 + freq_buf_len);
+                    lcd_print_char(' ');
+                } else if (key == '#' && freq_buf_len > 0) {
+                    uint32_t freq_khz = freq_parse_khz(freq_buf);
+                    if (freq_khz >= 400000UL && freq_khz <= 450000UL) {
+                        adf4351_set_frequency(freq_khz);
+                        lcd_freq_display(freq_khz);
+                        lcd_set_cursor(3, 0);
+                        lcd_print_str(ADF4351_LD_PIN ? "PLL:locked          " : "PLL:UNLOCK!         ");
+                    } else {
+                        lcd_set_cursor(1, 0);
+                        lcd_print_str("Freq:hors plage     ");
+                    }
+                    freq_entry_mode = 0;
+                } else if (key == 'D') {
+                    freq_entry_mode = 0;
+                    lcd_set_cursor(3, 0);
+                    lcd_print_str("Annule              ");
+                }
+            }
         }
 
         // Periodic LCD refresh (every 500 ms, only when idle)
@@ -138,15 +215,38 @@ int main(void) {
         if ((current_time - last_lcd_update) >= 500 && tx_phase == IDLE_STATE) {
             last_lcd_update = current_time;
 
-            // Line 2: GPS status
+            // Line 2: GPS lat/lon
             lcd_set_cursor(2, 0);
             if (gps_has_fix()) {
                 const gps_data_t *gps = gps_get_data();
-                lcd_print_str("GPS: ");
-                lcd_print_int(gps->satellites);
-                lcd_print_str(" sats ");
+                double lat = gps->latitude;
+                double lon = gps->longitude;
+                char ns = (lat >= 0) ? 'N' : 'S';
+                char ew = (lon >= 0) ? 'E' : 'W';
+                if (lat < 0) lat = -lat;
+                if (lon < 0) lon = -lon;
+                int16_t lat_d = (int16_t)lat;
+                int16_t lat_f = (int16_t)((lat - lat_d) * 1000);
+                int16_t lon_d = (int16_t)lon;
+                int16_t lon_f = (int16_t)((lon - lon_d) * 1000);
+                lcd_print_str("Pos:");
+                lcd_print_char(ns);
+                lcd_print_int(lat_d);
+                lcd_print_char('.');
+                if (lat_f < 100) lcd_print_char('0');
+                if (lat_f < 10)  lcd_print_char('0');
+                lcd_print_int(lat_f);
+                lcd_print_char(' ');
+                lcd_print_char(ew);
+                if (lon_d < 100) lcd_print_char('0');
+                if (lon_d < 10)  lcd_print_char('0');
+                lcd_print_int(lon_d);
+                lcd_print_char('.');
+                if (lon_f < 100) lcd_print_char('0');
+                if (lon_f < 10)  lcd_print_char('0');
+                lcd_print_int(lon_f);
             } else {
-                lcd_print_str("GPS: no fix    ");
+                lcd_print_str("GNSS:no fix         ");
             }
         }
 
@@ -181,7 +281,7 @@ int main(void) {
         
         // Periodic status report
         static uint32_t last_status = 0;
-        if((current_time - last_status) >= 1000) {
+        if((current_time - last_status) >= 10000) {
             last_status = current_time;
             DEBUG_LOG_FLUSH("Status: phase=");
             debug_print_uint16(tx_phase);
@@ -201,9 +301,9 @@ int main(void) {
         static uint32_t last_pll_check = 0;
         static uint8_t pll_was_locked = 1;  // Assume locked after init
         
-        if((current_time - last_pll_check) >= 5000) {
+        if((current_time - last_pll_check) >= 5000 && tx_phase != IDLE_STATE) {
             last_pll_check = current_time;
-            
+
             if (ADF4351_LD_PIN) {
                 pll_was_locked = 1;
             } else {

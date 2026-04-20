@@ -286,9 +286,8 @@ void __attribute__((interrupt, auto_psv)) _T1Interrupt(void) {
                     envelope_gain = 1.0f - reduction;
                     sample_count++;
                 } else {
-                    DEBUG_LOG_FLUSH("RF shutdown complete\r\n");
-                    control_rf_amplifier(0);
                     rf_stop_transmission();
+                    DEBUG_LOG_FLUSH("RF shutdown complete\r\n");
                     LED_TX_PIN = 1;
                     tx_phase = IDLE_STATE;
                     sample_count = 0;

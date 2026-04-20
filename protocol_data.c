@@ -577,7 +577,7 @@ void start_beacon_frame(beacon_frame_type_t frame_type) {
 
         case BEACON_EXERCISE_FRAME:
             build_exercise_frame();   // EXERCISE mode with high power
-            set_tx_interval(15000);    // 15s interval for testing
+            set_tx_interval(30000);    // 30s interval for exercise
             break;
     }
 
