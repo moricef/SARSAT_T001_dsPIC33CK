@@ -1,119 +1,114 @@
-# dsPIC33CK Pin Assignment - COSPAS-SARSAT T.001 Beacon
+# dsPIC33CK64MC105 — Pinout SARSAT T.001
 
-## 📌 Pin Mapping Summary
+## Port A — Clavier 4x4 (lignes sorties)
 
-### Port A
-| Pin | RP# | Function | Direction | Description |
-|-----|-----|----------|-----------|-------------|
-| RA3 | - | DACOUT | Output | Internal DAC output (analog) |
+| Pin  | Fonction   | Dir    | Description          |
+|------|------------|--------|----------------------|
+| RA0  | KP_ROW0    | Output | Ligne 0 clavier      |
+| RA1  | KP_ROW1    | Output | Ligne 1 clavier      |
+| RA2  | KP_ROW2    | Output | Ligne 2 clavier      |
+| RA3  | DACOUT     | Output | DAC interne (analog) |
+| RA4  | KP_ROW3    | Output | Ligne 3 clavier      |
 
-### Port B
-| Pin | RP# | Function | Direction | Description |
-|-----|-----|----------|-----------|-------------|
-| RB0 | RP32 | Debug Pin | Output | General debug GPIO |
-| RB1 | RP33 | Frequency Select | Input | Configuration switch (pull-down) |
-| RB2 | RP34 | Frame Type Select | Input | TEST/EXERCISE mode switch (pull-down) |
-| RB3 | RP36 | U1RX | Input | UART1 RX (currently unused) |
-| RB4 | RP35 | U1TX | Output | UART1 TX (currently unused) |
-| RB5 | RP37 | - | **Available** | **FREE** |
-| RB6 | RP38 | - | **Available** | **FREE** |
-| RB7 | RP39 | SCK2 | Output | SPI2 Clock (MCP4922 DAC) |
-| RB8 | RP40 | SDO2 | Output | SPI2 Data Out (MCP4922 DAC) |
-| RB9 | RP41 | CS2_DAC | Output | SPI2 Chip Select (MCP4922) |
-| RB10 | RP42 | RF_AMP_EN | Output | RF Amplifier Enable |
-| RB11 | RP43 | RF_PWR_SEL | Output | RF Power Level Select |
+## Port B — RF chain
 
-### Port C
-| Pin | RP# | Function | Direction | Description |
-|-----|-----|----------|-----------|-------------|
-| RC0 | RP48 | SDO1 | Output | SPI1 Data Out (ADF4351) |
-| RC1 | RP49 | CS_ADF4351 | Output | ADF4351 Chip Select |
-| RC2 | RP50 | SCK1 | Output | SPI1 Clock |
-| RC3 | RP51 | CS_ADL5375 | Output | ADL5375 Chip Select |
-| RC4 | RP52 | **U3RX** | **Input** | **UART3 RX (GPS)** ✅ |
-| RC5 | RP53 | **U3TX** | **Output** | **UART3 TX (GPS)** ✅ |
-| RC6 | RP54 | - | **Available** | **FREE** |
-| RC7 | RP55 | - | **Available** | **FREE** |
-| RC8 | RP56 | LE_ADF4351 | Output | ADF4351 Latch Enable |
-| RC9 | RP57 | ADF4351_LD | Input | ADF4351 Lock Detect |
-| RC10 | RP58 | U2TX | Output | UART2 TX (Debug) |
-| RC11 | RP59 | U2RX | Input | UART2 RX (Debug) |
+| Pin  | RP# | Fonction     | Dir    | Description                   |
+|------|-----|--------------|--------|-------------------------------|
+| RB7  | 39  | SCK2         | Output | SPI2 Horloge (MCP4922)        |
+| RB8  | 40  | SDO2         | Output | SPI2 Data (MCP4922)           |
+| RB9  | 41  | CS_DAC       | Output | SPI2 Chip Select MCP4922      |
+| RB10 | 42  | AMP_ENABLE   | Output | Activation amplificateur RF   |
+| RB11 | 43  | RF_PWR_SEL   | Output | Sélection niveau puissance    |
 
-### Port D
-| Pin | RP# | Function | Direction | Description |
-|-----|-----|----------|-----------|-------------|
-| RD10 | - | LED_TX | Output | Transmission LED indicator |
-| RD13 | - | BUTTON | Input | Reset/Mode button (pull-up) |
+## Port C — SPI1 / UART / Clavier (colonnes)
 
-## 🔌 Available Pins for Future Expansion
+| Pin  | RP# | Fonction     | Dir    | Description                        |
+|------|-----|--------------|--------|------------------------------------|
+| RC0  | 48  | SDO1         | Output | SPI1 Data (ADF4351 / ADL5375)      |
+| RC1  | 49  | CS_ADF4351   | Output | ADF4351 Chip Select                |
+| RC2  | 50  | SCK1         | Output | SPI1 Horloge                       |
+| RC3  | 51  | CS_ADL5375   | Output | ADL5375 Chip Select                |
+| RC4  | 52  | U3TX         | Output | UART3 TX → GNSS RX (optionnel)     |
+| RC5  | 53  | U3RX         | Input  | UART3 RX ← GNSS TX (NMEA 9600)    |
+| RC6  | 54  | KP_COL0      | Input  | Colonne 0 clavier (pull-up interne)|
+| RC7  | 55  | KP_COL1      | Input  | Colonne 1 clavier (pull-up interne)|
+| RC8  | 56  | LE_ADF4351   | Output | ADF4351 Latch Enable               |
+| RC9  | 57  | ADF4351_LD   | Input  | ADF4351 Lock Detect                |
+| RC10 | 58  | U2TX         | Output | UART2 TX → Debug console (115200)  |
+| RC11 | 59  | U2RX         | Input  | UART2 RX ← Debug console          |
+| RC12 | 60  | KP_COL2      | Input  | Colonne 2 clavier (pull-up interne)|
+| RC13 | 61  | KP_COL3      | Input  | Colonne 3 clavier (pull-up interne)|
 
-### Fully Available:
-- **RB5** (RP37) - Digital I/O
-- **RB6** (RP38) - Digital I/O
-- **RC6** (RP54) - Digital I/O
-- **RC7** (RP55) - Digital I/O
+## Port D — LCD I2C / LED
 
-## 📡 UART Configuration
+| Pin  | Fonction   | Dir    | Description                          |
+|------|------------|--------|--------------------------------------|
+| RD1  | I2C_SDA    | I/O    | SDA I2C logiciel → LCD PCF8574 0x27  |
+| RD8  | I2C_SCL    | I/O    | SCL I2C logiciel → LCD PCF8574 0x27  |
+| RD10 | LED_TX     | Output | LED témoin émission                  |
 
-### UART1 (RB3/RB4) - Communication
-- **Status**: Configured but **UNUSED**
-- **Baud**: Configurable
-- **Pins**: RB3 (RX/RP36), RB4 (TX/RP35)
-- **Notes**: Buffer circulaire `rxQueue[]` configuré mais jamais lu
+---
 
-### UART2 (RC10/RC11) - Debug Output
-- **Status**: **ACTIVE**
-- **Baud**: Configurable (typically 115200)
-- **Pins**: RC10 (TX/RP58), RC11 (RX/RP59)
-- **Function**: Debug messages, command input via `process_uart_commands()`
+## Périphériques connectés
 
-### UART3 (RC4/RC5) - GPS NMEA
-- **Status**: **ACTIVE** (GPS Module)
-- **Baud**: 9600 (standard NMEA)
-- **Pins**: RC4 (RX/RP52), RC5 (TX/RP53)
-- **Function**: GPS NMEA sentence reception
-- **PPS Config**: Automatic in `gps_init()`
+### Écran LCD 20x4 — HD44780 via PCF8574
+| Signal | MCU  | Description                    |
+|--------|------|--------------------------------|
+| SCL    | RD8  | I2C logiciel, 5 µs/bit         |
+| SDA    | RD1  | I2C logiciel, open-drain       |
+| Addr   | 0x27 | PCF8574 avec A0=A1=A2=1        |
 
-## 🎛️ SPI Configuration
+Disposition affichage :
+- Ligne 0 : mode (TEST 5s 100mW / EXERC 30s 5W)
+- Ligne 1 : fréquence (Freq:403.040 MHz)
+- Ligne 2 : position GNSS (Pos: ou GNSS:no fix)
+- Ligne 3 : statut / position fictive (Tlse:) / aide saisie
 
-### SPI1 (ADF4351 + ADL5375)
-- **SCK**: RC2 (RP50)
-- **SDO**: RC0 (RP48)
-- **CS_ADF4351**: RC1 (RP49)
-- **CS_ADL5375**: RC3 (RP51)
-- **LE_ADF4351**: RC8 (RP56)
-- **LD_ADF4351**: RC9 (RP57) - Input
+### Clavier matriciel 4x4
+| Signal | MCU  | Clé associée (col→)    |
+|--------|------|------------------------|
+| ROW0   | RA0  | 1  4  7  *             |
+| ROW1   | RA1  | 2  5  8  0             |
+| ROW2   | RA2  | 3  6  9  #             |
+| ROW3   | RA4  | A  B  C  D             |
+| COL0   | RC6  | ↑ pull-up interne      |
+| COL1   | RC7  | ↑ pull-up interne      |
+| COL2   | RC12 | ↑ pull-up interne      |
+| COL3   | RC13 | ↑ pull-up interne      |
 
-### SPI2 (MCP4922 DAC)
-- **SCK**: RB7 (RP39)
-- **SDO**: RB8 (RP40)
-- **CS**: RB9 (RP41)
+Fonctions spéciales :
+- `A` : entrer fréquence
+- `B` : point décimal (pendant saisie fréq)
+- `*` : effacement (pendant saisie fréq)
+- `#` : confirmer fréquence
+- `D` : annuler saisie
+- `C` : basculer mode TEST / EXERCISE (hors TX)
 
-## ⚡ Power and Control
+### Module GNSS — UART3
+| Signal | MCU  | Description                  |
+|--------|------|------------------------------|
+| TX     | RC5  | RP53 — U3RX (réception NMEA) |
+| RX     | RC4  | RP52 — U3TX (commandes opt.) |
+| Baud   | 9600 | NMEA standard                |
 
-### RF Control
-- **Amplifier Enable**: RB10 (RP42)
-- **Power Level Select**: RB11 (RP43)
+Position fallback (sans fix) : CNES Toulouse — 43.5647°N, 1.4823°E
 
-### User Interface
-- **TX LED**: RD10
-- **Mode Button**: RD13 (with pull-up)
-- **Frequency Switch**: RB1 (with pull-down)
-- **Frame Type Switch**: RB2 (with pull-down)
+### ADF4351 — SPI1
+| Signal | MCU  |
+|--------|------|
+| CLK    | RC2  |
+| DATA   | RC0  |
+| CS     | RC1  |
+| LE     | RC8  |
+| LD     | RC9  |
 
-## 📝 Notes
+### MCP4922 DAC — SPI2
+| Signal | MCU  |
+|--------|------|
+| CLK    | RB7  |
+| SDI    | RB8  |
+| CS     | RB9  |
 
-1. **RP Numbers**: Remappable pins follow the pattern RPx where x is the RP number
-2. **PPS Configuration**: Use `__builtin_write_OSCCONL()` to unlock/lock PPS
-3. **Analog Pins**: Set `ANSELx = 0` for digital mode
-4. **UART1**: Currently unused - available for future repurposing
-5. **GPS Module**: Connect to RC4 (GPS TX → U3RX) and RC5 (GPS RX → U3TX, optional)
-
-## 🔧 GPIO Initialization Order
-
-1. Disable all analog functions (`ANSELA/B/C/D = 0`)
-2. Configure TRIS registers (1=input, 0=output)
-3. Configure ANSEL registers for specific analog needs (e.g., RA3 for DAC)
-4. Configure PPS for UARTs and SPI
-5. Initialize pull-ups/pull-downs (CNPU/CNPD)
-6. Initialize peripheral modules (SPI, UART, DAC, etc.)
+### ADL5375 — modulateur I/Q analogique
+Pas d'interface SPI. Bias IBBP/IBBN/QBBP/QBBN fixé par hardware (R15-R18 = 2.2kΩ, R21 strap → 499 mV).
+RC3 non utilisé.

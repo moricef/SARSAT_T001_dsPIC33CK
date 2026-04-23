@@ -12,9 +12,9 @@
 // =============================
 // Configuration du protocole CS-T001
 // =============================
-#define TEST_LATITUDE 42.95463
-#define TEST_LONGITUDE 1.364479
-#define TEST_ALTITUDE 1080
+#define TEST_LATITUDE  43.5647
+#define TEST_LONGITUDE  1.4823
+#define TEST_ALTITUDE      150
 
 // BCH Polynomials (CS-T001 compliant)
 #define BCH1_POLY       0x26D9E3  // 22-bit (X^21 + ... + 1)

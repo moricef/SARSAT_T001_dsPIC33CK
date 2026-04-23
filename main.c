@@ -4,7 +4,7 @@
 #include "system_comms.h"
 #include "protocol_data.h"  // Ajout pour les fonctions de trame
 #include "rf_interface.h"   // Pour les fonctions RF
-#include "spi2_test.h"      // Test de compatibilité SPI2
+// spi2_test.h excluded - test code removed from build
 #include "drivers/mcp4922_driver.h"  // Driver MCP4922
 #include "drivers/i2c_sw.h"          // Software I2C for LCD
 #include "drivers/lcd1604_i2c.h"     // LCD 16x4 via PCF8574
@@ -229,6 +229,7 @@ int main(void) {
                 int16_t lat_f = (int16_t)((lat - lat_d) * 1000);
                 int16_t lon_d = (int16_t)lon;
                 int16_t lon_f = (int16_t)((lon - lon_d) * 1000);
+                // Pos:N43.565 E001.482  (20 chars)
                 lcd_print_str("Pos:");
                 lcd_print_char(ns);
                 lcd_print_int(lat_d);
@@ -245,8 +246,37 @@ int main(void) {
                 if (lon_f < 100) lcd_print_char('0');
                 if (lon_f < 10)  lcd_print_char('0');
                 lcd_print_int(lon_f);
+                lcd_set_cursor(3, 0);
+                lcd_print_str("                    ");
             } else {
                 lcd_print_str("GNSS:no fix         ");
+                // Line 3: show fallback position being used in frame
+                double lat = TEST_LATITUDE;
+                double lon = TEST_LONGITUDE;
+                char ns = (lat >= 0) ? 'N' : 'S';
+                char ew = (lon >= 0) ? 'E' : 'W';
+                if (lat < 0) lat = -lat;
+                if (lon < 0) lon = -lon;
+                int16_t lat_d = (int16_t)lat;
+                int16_t lat_f = (int16_t)((lat - lat_d) * 100);
+                int16_t lon_d = (int16_t)lon;
+                int16_t lon_f = (int16_t)((lon - lon_d) * 100);
+                lcd_set_cursor(3, 0);
+                lcd_print_str("Tlse:");
+                lcd_print_char(ns);
+                lcd_print_int(lat_d);
+                lcd_print_char('.');
+                if (lat_f < 10) lcd_print_char('0');
+                lcd_print_int(lat_f);
+                lcd_print_char(' ');
+                lcd_print_char(ew);
+                if (lon_d < 100) lcd_print_char('0');
+                if (lon_d < 10)  lcd_print_char('0');
+                lcd_print_int(lon_d);
+                lcd_print_char('.');
+                if (lon_f < 10) lcd_print_char('0');
+                lcd_print_int(lon_f);
+                lcd_print_str(" ");
             }
         }
 

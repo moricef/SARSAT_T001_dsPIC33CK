@@ -86,12 +86,15 @@ void adf4351_write_register(uint32_t reg_data) {
 // ADF4351 Frequency Programming
 // =============================
 
-// DIVIDER=8 (valid for ~275-550 MHz output), f_PFD=25 MHz, MOD=1000
-// Resolution = 25000/(1000*8) = 3.125 kHz per FRAC unit
+// DIVIDER=8, MOD=1000, f_PFD = ADF4351_REF_HZ
+// Calibré par mesure SDR : 25000000 * (403033250 / 403040000) = 24999581 Hz
+// Ajuster ADF4351_REF_HZ si l'écart résiduel est encore visible après flash
+#define ADF4351_REF_HZ 24999581UL
+
 void adf4351_set_frequency(uint32_t freq_khz) {
-    uint32_t f_vco  = freq_khz * 8UL;
-    uint32_t n_int  = f_vco / 25000UL;
-    uint32_t n_frac = ((f_vco % 25000UL) * 1000UL + 12500UL) / 25000UL;
+    uint64_t f_vco  = (uint64_t)freq_khz * 8000UL;   // Hz
+    uint32_t n_int  = (uint32_t)(f_vco / ADF4351_REF_HZ);
+    uint32_t n_frac = (uint32_t)(((f_vco % ADF4351_REF_HZ) * 1000UL + ADF4351_REF_HZ / 2) / ADF4351_REF_HZ);
     if (n_frac >= 1000UL) { n_int++; n_frac = 0; }
 
     uint32_t regs[6];
@@ -171,17 +174,14 @@ void rf_init_adf4351(void) {
     
     __delay_ms(10);         // Power-up delay
     
-    // Program ADF4351 registers (R5 to R0)
+    // Program ADF4351 via adf4351_set_frequency (uses calibrated ADF4351_REF_HZ)
     DEBUG_LOG_FLUSH("Programming ADF4351 registers...\r\n");
-    for(int i = 0; i < 6; i++) {
-        adf4351_write_register(adf4351_regs_403mhz[i]);
-        __delay_ms(2);
-    }
-    
+    adf4351_set_frequency(403040);
+
     // Wait for PLL lock with retry mechanism
     uint8_t lock_attempts = 0;
     const uint8_t max_attempts = 3;
-    
+
     while (lock_attempts < max_attempts) {
         lock_attempts++;
         DEBUG_LOG_FLUSH("PLL lock attempt ");
@@ -189,20 +189,15 @@ void rf_init_adf4351(void) {
         DEBUG_LOG_FLUSH("/");
         debug_print_uint16(max_attempts);
         DEBUG_LOG_FLUSH("\r\n");
-        
+
         if (adf4351_wait_for_lock()) {
             DEBUG_LOG_FLUSH("ADF4351 initialized successfully at 403.040 MHz\r\n");
-            return; // Success - exit function
+            return;
         } else {
             DEBUG_LOG_FLUSH("PLL lock attempt failed\r\n");
             if (lock_attempts < max_attempts) {
                 DEBUG_LOG_FLUSH("Reprogramming registers...\r\n");
-                // Reprogram all registers
-                for(int i = 0; i < 6; i++) {
-                    adf4351_write_register(adf4351_regs_403mhz[i]);
-                    __delay_ms(2);
-                }
-                __delay_ms(50); // Extra settling time
+                adf4351_set_frequency(403040);
             }
         }
     }

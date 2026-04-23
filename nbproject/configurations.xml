@@ -385,6 +385,20 @@
                   value="Press to select which tool pack to use"/>
         <property key="voltagevalue" value=""/>
       </nEdbgTool>
+      <item path="spi2_test.c" ex="true" overriding="false">
+        <C30>
+        </C30>
+        <C30-AR>
+        </C30-AR>
+        <C30-AS>
+        </C30-AS>
+        <C30-CO>
+        </C30-CO>
+        <C30-LD>
+        </C30-LD>
+        <C30Global>
+        </C30Global>
+      </item>
     </conf>
   </confs>
 </configurationDescriptor>
