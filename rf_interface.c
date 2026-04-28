@@ -19,7 +19,7 @@ static volatile uint8_t rf_current_power_mode = RF_POWER_LOW;  // Current power 
 // =============================
 
 // ADF4351 register values for 403 MHz output with 25 MHz reference
-// INT = 128, FRAC = 96, MOD = 100 → 25 MHz × (128 + 96/100) = 3224 MHz / 8 = 403 MHz
+// INT = 128, FRAC = 96, MOD = 4095 → 25 MHz × (128 + 96/4095) / 8 ≈ 403 MHz
 const uint32_t adf4351_regs_403mhz[] = {
     0x00580005,  // R5
     0x00BC803C,  // R4  
@@ -86,23 +86,22 @@ void adf4351_write_register(uint32_t reg_data) {
 // ADF4351 Frequency Programming
 // =============================
 
-// DIVIDER=8, MOD=1000, f_PFD = ADF4351_REF_HZ
-// Calibré par mesure SDR : 25000000 * (403033250 / 403040000) = 24999581 Hz
-// Ajuster ADF4351_REF_HZ si l'écart résiduel est encore visible après flash
-#define ADF4351_REF_HZ 24999581UL
+// DIVIDER=8, MOD=4095, f_PFD = ADF4351_REF_HZ
+// Calibré par mesure SDR : 403 038 900 Hz mesuré pour 403 040 000 Hz demandé
+#define ADF4351_REF_HZ 24999893UL
 
 void adf4351_set_frequency(uint32_t freq_khz) {
     uint64_t f_vco  = (uint64_t)freq_khz * 8000UL;   // Hz
     uint32_t n_int  = (uint32_t)(f_vco / ADF4351_REF_HZ);
-    uint32_t n_frac = (uint32_t)(((f_vco % ADF4351_REF_HZ) * 1000UL + ADF4351_REF_HZ / 2) / ADF4351_REF_HZ);
-    if (n_frac >= 1000UL) { n_int++; n_frac = 0; }
+    uint32_t n_frac = (uint32_t)(((f_vco % ADF4351_REF_HZ) * 4095UL + ADF4351_REF_HZ / 2) / ADF4351_REF_HZ);
+    if (n_frac >= 4095UL) { n_int++; n_frac = 0; }
 
     uint32_t regs[6];
     regs[0] = adf4351_regs_403mhz[0];                                          // R5
     regs[1] = adf4351_regs_403mhz[1];                                          // R4
     regs[2] = adf4351_regs_403mhz[2];                                          // R3
     regs[3] = adf4351_regs_403mhz[3];                                          // R2
-    regs[4] = (adf4351_regs_403mhz[4] & 0xFFFF8007UL) | (1000UL << 3);        // R1 MOD=1000
+    regs[4] = (adf4351_regs_403mhz[4] & 0xFFFF8007UL) | (4095UL << 3);        // R1 MOD=4095
     regs[5] = (n_int << 15) | (n_frac << 3);                                   // R0
 
     for (uint8_t i = 0; i < 6; i++) {
