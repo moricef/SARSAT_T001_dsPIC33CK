@@ -288,7 +288,7 @@ void __attribute__((interrupt, auto_psv)) _T1Interrupt(void) {
                 } else {
                     rf_stop_transmission();
                     DEBUG_LOG_FLUSH("RF shutdown complete\r\n");
-                    LED_TX_PIN = 1;
+                    LED_TX_PIN = 0; // LED ON
                     tx_phase = IDLE_STATE;
                     sample_count = 0;
                     transmission_complete_flag = 1;
@@ -355,7 +355,7 @@ void start_transmission(volatile const uint8_t* data) {
     DEBUG_LOG_FLUSH("Starting transmission sequence\r\n");
     rf_start_transmission();
     __delay_ms(5);  // Brief RF stabilization
-    LED_TX_PIN = 0;  // Turn on TX LED
+    LED_TX_PIN = 1;  // Turn off TX LED
 
     // Begin transmission state machine - prepare signal BEFORE RF activation
     tx_phase = CARRIER_TX;             // Signal DAC → 500mV first
