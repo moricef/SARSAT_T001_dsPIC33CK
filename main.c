@@ -116,7 +116,7 @@ int main(void) {
     keypad_init();
     lcd_mode_display();
     lcd_set_cursor(1, 0);
-    lcd_print_str("Freq:403.040 MHz");
+    lcd_print_str("Freq:431.975 MHz");
     lcd_set_cursor(2, 0);
     lcd_print_str("GNSS:no fix         ");
     DEBUG_LOG_FLUSH("LCD+Keypad init completed\r\n");

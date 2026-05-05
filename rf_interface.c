@@ -18,15 +18,15 @@ static volatile uint8_t rf_current_power_mode = RF_POWER_LOW;  // Current power 
 // ADF4351 Configuration Data
 // =============================
 
-// ADF4351 register values for 403 MHz output with 25 MHz reference
-// INT = 128, FRAC = 96, MOD = 4095 → 25 MHz × (128 + 96/4095) / 8 ≈ 403 MHz
+// ADF4351 register values for 431.975 MHz output with 10 MHz OCXO reference
+// INT = 345, FRAC = 2375, MOD = 4095 → 10 MHz × (345 + 2375/4095) / 8 ≈ 431.975 MHz
 const uint32_t adf4351_regs_403mhz[] = {
     0x00580005,  // R5
-    0x00BC803C,  // R4  
+    0x00BC803C,  // R4
     0x000004B3,  // R3
-    0x18004E42,  // R2
+    0x18004E42,  // R2  (R_counter=1, f_PFD=10 MHz)
     0x080087D1,  // R1
-    0x00400798   // R0
+    0x00ACCA38   // R0  (INT=345, FRAC=2375, overwritten by adf4351_set_frequency)
 };
 
 // =============================
@@ -86,9 +86,9 @@ void adf4351_write_register(uint32_t reg_data) {
 // ADF4351 Frequency Programming
 // =============================
 
-// DIVIDER=8, MOD=4095, f_PFD = ADF4351_REF_HZ
-// Calibré par mesure SDR : 403 038 900 Hz mesuré pour 403 040 000 Hz demandé
-#define ADF4351_REF_HZ 24999893UL
+// DIVIDER=8, MOD=4095, f_PFD = ADF4351_REF_HZ (OCXO 10 MHz, R_counter=1)
+// À recalibrer par mesure SDR après remplacement du crystal 25 MHz par l'OCXO
+#define ADF4351_REF_HZ 10000000UL
 
 void adf4351_set_frequency(uint32_t freq_khz) {
     uint64_t f_vco  = (uint64_t)freq_khz * 8000UL;   // Hz
@@ -175,7 +175,7 @@ void rf_init_adf4351(void) {
     
     // Program ADF4351 via adf4351_set_frequency (uses calibrated ADF4351_REF_HZ)
     DEBUG_LOG_FLUSH("Programming ADF4351 registers...\r\n");
-    adf4351_set_frequency(403040);
+    adf4351_set_frequency(431975);
 
     // Wait for PLL lock with retry mechanism
     uint8_t lock_attempts = 0;
@@ -190,19 +190,35 @@ void rf_init_adf4351(void) {
         DEBUG_LOG_FLUSH("\r\n");
 
         if (adf4351_wait_for_lock()) {
-            DEBUG_LOG_FLUSH("ADF4351 initialized successfully at 403.040 MHz\r\n");
+            DEBUG_LOG_FLUSH("ADF4351 initialized successfully at 431.975 MHz\r\n");
             return;
         } else {
             DEBUG_LOG_FLUSH("PLL lock attempt failed\r\n");
             if (lock_attempts < max_attempts) {
                 DEBUG_LOG_FLUSH("Reprogramming registers...\r\n");
-                adf4351_set_frequency(403040);
+                adf4351_set_frequency(431975);
             }
         }
     }
     
-    // System halt if all attempts failed - NO RETURN
-    rf_system_halt("ADF4351 PLL LOCK FAILED AFTER 3 ATTEMPTS");
+    // OCXO warm-up: keep retrying until PLL locks (OCXO needs 30-60s to stabilize)
+    DEBUG_LOG_FLUSH("Waiting for OCXO warm-up (CE stays ON)...\r\n");
+    uint16_t warmup_iter = 0;
+    while (1) {
+        adf4351_set_frequency(431975);
+        if (adf4351_wait_for_lock()) {
+            DEBUG_LOG_FLUSH("PLL locked after OCXO warm-up (");
+            debug_print_uint16(warmup_iter);
+            DEBUG_LOG_FLUSH("s)\r\n");
+            return;
+        }
+        warmup_iter++;
+        if (warmup_iter % 10 == 0) {
+            DEBUG_LOG_FLUSH("OCXO warming up... ");
+            debug_print_uint16(warmup_iter);
+            DEBUG_LOG_FLUSH("s\r\n");
+        }
+    }
 }
 
 void rf_adf4351_enable_output(uint8_t state) {
@@ -327,7 +343,7 @@ void rf_control_amplifier_chain(uint8_t state) {
         // Debug confirmation
         DEBUG_LOG_FLUSH("RF Chain ENABLED (");
         DEBUG_LOG_FLUSH((rf_current_power_mode == RF_POWER_HIGH) ? "HIGH" : "LOW");
-        DEBUG_LOG_FLUSH(" power, 403 MHz)\r\n");
+        DEBUG_LOG_FLUSH(" power, 431.975 MHz)\r\n");
         
     } else {
         // RF chain power-down sequence (reverse order for safety)
@@ -373,7 +389,7 @@ void rf_initialize_all_modules(void) {
     
     // Initialize modules in dependency order
     DEBUG_LOG_FLUSH("About to call rf_init_adf4351...\r\n");
-    rf_init_adf4351();           // PLL synthesizer @ 403 MHz
+    rf_init_adf4351();           // PLL synthesizer @ 431.975 MHz
     DEBUG_LOG_FLUSH("rf_init_adf4351 completed\r\n");
     
     DEBUG_LOG_FLUSH("About to call rf_init_adl5375...\r\n");
