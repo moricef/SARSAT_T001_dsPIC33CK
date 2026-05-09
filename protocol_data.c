@@ -536,7 +536,7 @@ void build_test_frame(void) {
         DEBUG_LOG_FLUSH("Test frame built with fixed GPS values\r\n");
          
     }
-	rf_set_power_level(RF_POWER_LOW);  // Puissance reduite
+	rf_set_power_level(RF_POWER_HIGH); // 5W permanent
 }
 
 // Backward compatibility - Exercise frame

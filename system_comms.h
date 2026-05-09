@@ -13,7 +13,7 @@
 
 // ADL5375 I/Q Modulator Configuration with LMV358 filter stages (5V supply)
 #define ADL5375_BIAS_MV         1650            // 1650mV bias level (3.3V/2)
-#define ADL5375_SWING_MV        1000            // 1000mV peak-to-peak swing (±500mV)
+#define ADL5375_SWING_MV        750             // 600mV peak-to-peak swing (±300mV)
 #define ADL5375_MIN_VOLTAGE     1.15f           // Minimum output voltage (1.65V - 0.5V)
 #define ADL5375_MAX_VOLTAGE     2.15f           // Maximum output voltage (1.65V + 0.5V)
 

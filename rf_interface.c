@@ -12,7 +12,7 @@ const char rf_build_time[] = __TIME__;
 // Global RF State Variables
 // =============================
 static volatile uint8_t rf_amp_enabled = 0;              // RF amplifier state
-static volatile uint8_t rf_current_power_mode = RF_POWER_LOW;  // Current power mode
+static volatile uint8_t rf_current_power_mode = RF_POWER_HIGH; // 5W permanent (H46S)
 
 // =============================
 // ADF4351 Configuration Data
@@ -87,7 +87,8 @@ void adf4351_write_register(uint32_t reg_data) {
 // =============================
 
 // DIVIDER=8, MOD=4095, f_PFD = ADF4351_REF_HZ (OCXO 10 MHz, R_counter=1)
-// À recalibrer par mesure SDR après remplacement du crystal 25 MHz par l'OCXO
+// Mesure SDR : 431.975.130 MHz pour 431.975.000 demandé → erreur 0.3 ppm (dans la résolution PLL)
+// MOD=4095 → pas de 305 Hz @RF. L'erreur résiduelle est en-dessous du pas de correction.
 #define ADF4351_REF_HZ 10000000UL
 
 void adf4351_set_frequency(uint32_t freq_khz) {
@@ -280,13 +281,13 @@ void rf_init_power_amplifier(void) {
     
     // Set initial states
     AMP_ENABLE_PIN = 0;     // PA disabled
-    POWER_CTRL_PIN = 0;     // Low power mode
+    POWER_CTRL_PIN = 1;     // 5W permanent (H46S trimpot)
     
     // Initialize state variables
-    rf_current_power_mode = RF_POWER_LOW;
+    rf_current_power_mode = RF_POWER_HIGH;
     rf_amp_enabled = 0;
     
-    DEBUG_LOG_FLUSH("RA07M4047M PA initialized: Low power, OFF\r\n");
+    DEBUG_LOG_FLUSH("RA07M4047M PA initialized: 5W, OFF\r\n");
 }
 
 void rf_set_power_level(uint8_t mode) {

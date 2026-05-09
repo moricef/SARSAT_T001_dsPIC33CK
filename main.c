@@ -64,7 +64,7 @@ beacon_frame_type_t get_frame_type_from_switch(void) {
 static void lcd_mode_display(void) {
     lcd_set_cursor(0, 0);
     lcd_print_str(current_frame_type == BEACON_TEST_FRAME
-        ? "TEST 5s 100mW       "
+        ? "TEST 5s 5W          "
         : "EXERC 30s 5W        ");
 }
 
@@ -139,7 +139,7 @@ int main(void) {
     //mcp4922_test_pattern();
     //DEBUG_LOG_FLUSH("MCP4922 pattern test completed\r\n");
 
-    rf_set_power_level(RF_POWER_LOW);
+    rf_set_power_level(RF_POWER_HIGH); // 5W permanent
     
     DEBUG_LOG_FLUSH("Starting transmission - Mode: ");
     DEBUG_LOG_FLUSH(current_frame_type == BEACON_TEST_FRAME ? "TEST\r\n" : "EXERCISE\r\n");
