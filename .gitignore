@@ -26,3 +26,4 @@ nbproject/Package-*.bash
 # Logs
 *.log
 logs/*.txt
+CLAUDE.md
