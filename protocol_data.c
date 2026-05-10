@@ -445,7 +445,7 @@ void build_compliant_frame(void) {
     set_bit_field(frame, FRAME_PREAMBLE_START, FRAME_PREAMBLE_LENGTH, 0x7FFFUL);
 
     // Sync pattern selection
-    uint16_t sync_pattern = (beacon_mode == BEACON_MODE_TEST) ? SYNC_SELF_TEST : SYNC_NORMAL_LONG;
+    uint16_t sync_pattern = SYNC_SELF_TEST; // 0x0D0 for all modes
     set_bit_field(frame, FRAME_SYNC_START, FRAME_SYNC_LENGTH, sync_pattern);
 
     // Format and protocol flags
@@ -454,7 +454,7 @@ void build_compliant_frame(void) {
 
     // Country and protocol codes
     set_bit_field(frame, FRAME_COUNTRY_START, FRAME_COUNTRY_LENGTH, COUNTRY_CODE_FRANCE);
-    set_bit_field(frame, FRAME_PROTOCOL_START, FRAME_PROTOCOL_LENGTH, PROTOCOL_ELT_DT);
+    set_bit_field(frame, FRAME_PROTOCOL_START, FRAME_PROTOCOL_LENGTH, PROTOCOL_USER_TEST);
 
     // Beacon ID (example - replace with actual ID)
     set_bit_field(frame, FRAME_BEACON_ID_START, FRAME_BEACON_ID_LENGTH, 0x123456UL);
@@ -577,7 +577,7 @@ void start_beacon_frame(beacon_frame_type_t frame_type) {
 
         case BEACON_EXERCISE_FRAME:
             build_exercise_frame();   // EXERCISE mode with high power
-            set_tx_interval(30000);    // 30s interval for exercise
+            set_tx_interval(50000);    // 50s interval for exercise
             break;
     }
 

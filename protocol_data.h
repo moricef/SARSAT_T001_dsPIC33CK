@@ -27,7 +27,7 @@
 #define BCH2_DEGREE     12
 #define BCH2_DATA_BITS  26
 
-#define PROTOCOL_ELT_DT 0x9 // 1001 binary
+#define PROTOCOL_USER_TEST 0xC // 1100 binary (User Test Protocol)
 
 // Frame sync patterns
 #define SYNC_NORMAL_LONG 0x02F  // 000101111 (9 bits MSB-first)

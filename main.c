@@ -64,8 +64,8 @@ beacon_frame_type_t get_frame_type_from_switch(void) {
 static void lcd_mode_display(void) {
     lcd_set_cursor(0, 0);
     lcd_print_str(current_frame_type == BEACON_TEST_FRAME
-        ? "TEST 5s 5W          "
-        : "EXERC 30s 5W        ");
+        ? "MODE TEST 5s        "
+        : "MODE EXERC 50s      ");
 }
 
 uint8_t should_transmit_beacon(void) {
@@ -116,9 +116,11 @@ int main(void) {
     keypad_init();
     lcd_mode_display();
     lcd_set_cursor(1, 0);
-    lcd_print_str("Freq:431.975 MHz");
+    lcd_print_str("Freq:431.975 MHz   ");
     lcd_set_cursor(2, 0);
     lcd_print_str("GNSS:no fix         ");
+    lcd_set_cursor(3, 0);
+    lcd_print_str("ID:AD0911           ");
     DEBUG_LOG_FLUSH("LCD+Keypad init completed\r\n");
 
     // Test de compatibilité SPI2 (logiciel uniquement)
@@ -212,71 +214,83 @@ int main(void) {
 
         // Periodic LCD refresh (every 500 ms, only when idle)
         static uint32_t last_lcd_update = 0;
+        static uint8_t  lcd_rotate = 0;
+        static uint32_t last_lcd_rotate = 0;
+        static uint8_t  lcd_prev_rotate = 0xFF;
         if ((current_time - last_lcd_update) >= 500 && tx_phase == IDLE_STATE) {
             last_lcd_update = current_time;
 
-            // Line 2: GPS lat/lon
-            lcd_set_cursor(2, 0);
-            if (gps_has_fix()) {
-                const gps_data_t *gps = gps_get_data();
-                double lat = gps->latitude;
-                double lon = gps->longitude;
-                char ns = (lat >= 0) ? 'N' : 'S';
-                char ew = (lon >= 0) ? 'E' : 'W';
-                if (lat < 0) lat = -lat;
-                if (lon < 0) lon = -lon;
-                int16_t lat_d = (int16_t)lat;
-                int16_t lat_f = (int16_t)((lat - lat_d) * 1000);
-                int16_t lon_d = (int16_t)lon;
-                int16_t lon_f = (int16_t)((lon - lon_d) * 1000);
-                // Pos:N43.565 E001.482  (20 chars)
-                lcd_print_str("Pos:");
-                lcd_print_char(ns);
-                lcd_print_int(lat_d);
-                lcd_print_char('.');
-                if (lat_f < 100) lcd_print_char('0');
-                if (lat_f < 10)  lcd_print_char('0');
-                lcd_print_int(lat_f);
-                lcd_print_char(' ');
-                lcd_print_char(ew);
-                if (lon_d < 100) lcd_print_char('0');
-                if (lon_d < 10)  lcd_print_char('0');
-                lcd_print_int(lon_d);
-                lcd_print_char('.');
-                if (lon_f < 100) lcd_print_char('0');
-                if (lon_f < 10)  lcd_print_char('0');
-                lcd_print_int(lon_f);
+            if ((current_time - last_lcd_rotate) >= 5000) {
+                last_lcd_rotate = current_time;
+                lcd_rotate = (lcd_rotate + 1) % 3;
+            }
+
+            // Restore lines 0-1 after leaving full help screen
+            if (lcd_rotate != 2 && lcd_prev_rotate == 2) {
+                lcd_mode_display();
+                lcd_set_cursor(1, 0);
+                lcd_print_str("Freq:431.975 MHz   ");
+            }
+            lcd_prev_rotate = lcd_rotate;
+
+            if (lcd_rotate == 2) {
+                // Écran aide plein (4 lignes)
+                lcd_set_cursor(0, 0);
+                lcd_print_str("A=Frequence         ");
+                lcd_set_cursor(1, 0);
+                lcd_print_str("B=.                 ");
+                lcd_set_cursor(2, 0);
+                lcd_print_str("C=Mode TEST/EXERCICE");
                 lcd_set_cursor(3, 0);
-                lcd_print_str("                    ");
+                lcd_print_str("#=Valider           ");
             } else {
-                lcd_print_str("GNSS:no fix         ");
-                // Line 3: show fallback position being used in frame
-                double lat = TEST_LATITUDE;
-                double lon = TEST_LONGITUDE;
-                char ns = (lat >= 0) ? 'N' : 'S';
-                char ew = (lon >= 0) ? 'E' : 'W';
-                if (lat < 0) lat = -lat;
-                if (lon < 0) lon = -lon;
-                int16_t lat_d = (int16_t)lat;
-                int16_t lat_f = (int16_t)((lat - lat_d) * 100);
-                int16_t lon_d = (int16_t)lon;
-                int16_t lon_f = (int16_t)((lon - lon_d) * 100);
+                // Écrans normaux : rotation ligne 2 uniquement
+                lcd_set_cursor(2, 0);
+                if (lcd_rotate == 0) {
+                    if (gps_has_fix()) {
+                        lcd_print_str("GNSS:fix            ");
+                    } else {
+                        lcd_print_str("GNSS:no fix         ");
+                    }
+                } else {
+                    double lat, lon;
+                    const char *label;
+                    if (gps_has_fix()) {
+                        const gps_data_t *gps = gps_get_data();
+                        lat = gps->latitude; lon = gps->longitude;
+                        label = "GPS:";
+                    } else {
+                        lat = TEST_LATITUDE; lon = TEST_LONGITUDE;
+                        label = "Tlse:";
+                    }
+                    char ns = (lat >= 0) ? 'N' : 'S';
+                    char ew = (lon >= 0) ? 'E' : 'W';
+                    if (lat < 0) lat = -lat;
+                    if (lon < 0) lon = -lon;
+                    int16_t lat_d = (int16_t)lat;
+                    int16_t lat_f = (int16_t)((lat - lat_d) * 100);
+                    int16_t lon_d = (int16_t)lon;
+                    int16_t lon_f = (int16_t)((lon - lon_d) * 100);
+                    // Format compact 20c: "Tlse:N43.56 E001.48 "
+                    lcd_print_str(label);
+                    lcd_print_char(ns);
+                    lcd_print_int(lat_d);
+                    lcd_print_char('.');
+                    if (lat_f < 10) lcd_print_char('0');
+                    lcd_print_int(lat_f);
+                    lcd_print_char(' ');
+                    lcd_print_char(ew);
+                    if (lon_d < 100) lcd_print_char('0');
+                    if (lon_d < 10)  lcd_print_char('0');
+                    lcd_print_int(lon_d);
+                    lcd_print_char('.');
+                    if (lon_f < 10) lcd_print_char('0');
+                    lcd_print_int(lon_f);
+                    lcd_print_char(' ');
+                }
+
                 lcd_set_cursor(3, 0);
-                lcd_print_str("Tlse:");
-                lcd_print_char(ns);
-                lcd_print_int(lat_d);
-                lcd_print_char('.');
-                if (lat_f < 10) lcd_print_char('0');
-                lcd_print_int(lat_f);
-                lcd_print_char(' ');
-                lcd_print_char(ew);
-                if (lon_d < 100) lcd_print_char('0');
-                if (lon_d < 10)  lcd_print_char('0');
-                lcd_print_int(lon_d);
-                lcd_print_char('.');
-                if (lon_f < 10) lcd_print_char('0');
-                lcd_print_int(lon_f);
-                lcd_print_str(" ");
+                lcd_print_str("ID:AD0911           ");
             }
         }
 
