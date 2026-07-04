@@ -87,3 +87,7 @@ MPLAB X IDE with XC-DSC compiler v3.21+.
 
 - [dec406_V10.2](/home/fab2/Developpement/COSPAS-SARSAT/balise_406MHz/dec406_V10.2) — SDR decoder (scan406.pl, MIC_406.pl)
 - [Mod_QPSK_DSPpic](/home/fab2/Developpement/COSPAS-SARSAT/Mod_QPSK_DSPpic) — RF PCB (MMIC drivers + filter)
+
+## License
+
+This project is licensed under the MIT License. See `LICENSE`.
